@@ -29,7 +29,19 @@
         <activity
             android:name=".CrashReportActivity"
             android:exported="false"
-            android:theme="@style/Theme.Vocalize" />
+            android:theme="@style/Theme.Vocalize"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
+        <receiver
+            android:name=".CrashNotificationReceiver"
+            android:exported="false" />
+
+        <provider
+            android:name=".CrashReporterProvider"
+            android:authorities="${applicationId}.crash_reporter_initializer"
+            android:exported="false"
+            tools:node="merge" />
 
         <activity
             android:name=".MainActivity"

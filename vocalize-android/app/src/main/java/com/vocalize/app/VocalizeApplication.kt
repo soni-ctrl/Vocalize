@@ -40,12 +40,24 @@ class VocalizeApplication : Application() {
                 description = "Notification shown during audio playback"
             }
 
-            manager.createNotificationChannels(listOf(reminderChannel, playbackChannel))
+            // Crash channel
+            val crashChannel = NotificationChannel(
+                CHANNEL_CRASH,
+                "Crash Reports",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Crash notifications with crash log details"
+                enableLights(true)
+                enableVibration(true)
+            }
+
+            manager.createNotificationChannels(listOf(reminderChannel, playbackChannel, crashChannel))
         }
     }
 
     companion object {
         const val CHANNEL_REMINDERS = "vocalize_reminders"
         const val CHANNEL_PLAYBACK = "vocalize_playback"
+        const val CHANNEL_CRASH = "vocalize_crash"
     }
 }

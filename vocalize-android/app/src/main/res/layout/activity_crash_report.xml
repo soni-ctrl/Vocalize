@@ -52,6 +52,13 @@
             android:text="@string/crash_report_copy" />
 
         <Button
+            android:id="@+id/notifyCrashButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/crash_report_notify" />
+
+        <Button
             android:id="@+id/closeCrashButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

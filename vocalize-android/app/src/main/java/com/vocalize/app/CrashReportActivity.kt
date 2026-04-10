@@ -34,10 +34,14 @@ class CrashReportActivity : ComponentActivity() {
             Toast.makeText(this, R.string.crash_report_copied, Toast.LENGTH_SHORT).show()
         }
 
-        findViewById<Button>(R.id.closeCrashButton).setOnClickListener {
-            finishAffinity()
+        findViewById<Button>(R.id.notifyCrashButton).setOnClickListener {
+            CrashReporter.notifyLastCrash(this)
+            Toast.makeText(this, R.string.crash_report_notification_sent, Toast.LENGTH_SHORT).show()
         }
 
-        CrashReporter.clearSavedCrashLog(this)
+        findViewById<Button>(R.id.closeCrashButton).setOnClickListener {
+            CrashReporter.clearSavedCrashLog(this)
+            finishAffinity()
+        }
     }
 }

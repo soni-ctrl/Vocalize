@@ -143,10 +143,16 @@
     <string name="crash_report_title">Oops — the app has crashed</string>
     <string name="crash_report_subtitle">A crash report is ready. Copy the details and share them for debugging.</string>
     <string name="crash_report_copy">Copy crash report</string>
+    <string name="crash_report_notify">Notify me about this crash</string>
     <string name="crash_report_close">Close app</string>
     <string name="crash_report_copied">Crash report copied to clipboard</string>
+    <string name="crash_report_notification_sent">Crash notification posted</string>
     <string name="crash_report_clipboard_label">Vocalize crash report</string>
     <string name="crash_report_no_details">Crash details are unavailable.</string>
+    <string name="crash_notification_title">App launch failure detected</string>
+    <string name="crash_notification_text">Tap to open the crash log and copy details.</string>
+    <string name="crash_notification_action_copy">Copy log</string>
+    <string name="crash_notification_action_view">Open crash log</string>
 
     <!-- Errors / States -->
     <string name="error_recording_failed">Recording failed. Please try again.</string>
