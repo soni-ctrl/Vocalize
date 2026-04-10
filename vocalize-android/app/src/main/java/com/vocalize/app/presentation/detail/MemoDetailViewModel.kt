@@ -73,7 +73,15 @@ class MemoDetailViewModel @Inject constructor(
                 memoRepository.getAllTags(),
                 memoRepository.getTagsForMemo(memoId),
                 memoRepository.getRemindersForMemo(memoId)
-            ) { memo: MemoEntity?, categories: List<CategoryEntity>, playlists: List<PlaylistEntity>, tags: List<TagEntity>, memoTags: List<TagEntity>, reminders: List<ReminderEntity> ->
+            ) { values ->
+                @Suppress("UNCHECKED_CAST")
+                val memo = values[0] as MemoEntity?
+                val categories = values[1] as List<CategoryEntity>
+                val playlists = values[2] as List<PlaylistEntity>
+                val tags = values[3] as List<TagEntity>
+                val memoTags = values[4] as List<TagEntity>
+                val reminders = values[5] as List<ReminderEntity>
+                
                 DetailUiState(
                     memo = memo,
                     categories = categories,
