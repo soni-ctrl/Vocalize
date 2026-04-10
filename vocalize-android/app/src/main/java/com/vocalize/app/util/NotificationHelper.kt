@@ -125,7 +125,7 @@ class NotificationHelper @Inject constructor(
         isPlaying: Boolean,
         currentPosition: Int,
         duration: Int,
-        mediaSessionToken: android.media.session.MediaSession.Token?,
+        mediaSessionToken: androidx.media.session.MediaSessionCompat.Token?,
         pendingIntent: PendingIntent,
         playPauseIntent: PendingIntent,
         stopIntent: PendingIntent,

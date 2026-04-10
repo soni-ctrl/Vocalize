@@ -2,9 +2,9 @@ package com.vocalize.app.util
 
 import android.content.Context
 import android.media.MediaPlayer
-import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Build
+import androidx.media.session.MediaSessionCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,7 @@ class AudioPlayerManager @Inject constructor(
 ) {
     private var mediaPlayer: MediaPlayer? = null
     private var crossfadePlayer: MediaPlayer? = null
-    private var mediaSession: MediaSession? = null
+    private var mediaSession: MediaSessionCompat? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     var onPositionSave: ((String, Long) -> Unit)? = null
@@ -47,8 +47,8 @@ class AudioPlayerManager @Inject constructor(
     }
 
     private fun setupMediaSession() {
-        mediaSession = MediaSession(context, "VocalizeSession").apply {
-            setCallback(object : MediaSession.Callback() {
+        mediaSession = MediaSessionCompat(context, "VocalizeSession").apply {
+            setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() { togglePlayPause() }
                 override fun onPause() { togglePlayPause() }
                 override fun onStop() { release() }
@@ -220,7 +220,7 @@ class AudioPlayerManager @Inject constructor(
         mediaSession?.setPlaybackState(state)
     }
 
-    fun getMediaSessionToken(): MediaSession.Token? = mediaSession?.sessionToken
+    fun getMediaSessionToken(): MediaSessionCompat.Token? = mediaSession?.sessionToken
 
     fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
 
