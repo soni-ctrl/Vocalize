@@ -243,7 +243,7 @@ class AudioPlayerManager @Inject constructor(
         }
         mediaPlayer = null
         crossfadePlayer = null
-        _playbackState.value = PlaybackState()
+        _playbackState.value = AudioPlaybackState()
         updateMediaSessionState(false)
     }
 
