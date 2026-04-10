@@ -16,12 +16,6 @@ on:
     paths:
       - 'vocalize-android/**'
   workflow_dispatch:
-    inputs:
-      build_release:
-        description: 'Build signed release APK (requires keystore secrets)'
-        required: false
-        default: 'false'
-        type: boolean
 
 env:
   JAVA_VERSION: '17'
@@ -100,6 +94,16 @@ jobs:
           path: vocalize-android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
+      # 🔥 NEW: Create GitHub Release with DEBUG APK
+      - name: Create GitHub Release (Debug APK)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: vocalize-android/app/build/outputs/apk/debug/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Job summary
         run: |
           echo "## 📦 Vocalize Debug Build" >> $GITHUB_STEP_SUMMARY
@@ -111,115 +115,7 @@ jobs:
           echo "| Run number | \`${{ github.run_number }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| APK size | ${{ steps.apk_info.outputs.size }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Debug APK uploaded as artifact \`vocalize-debug-${{ github.run_number }}\`." >> $GITHUB_STEP_SUMMARY
-
-  # ─────────────────────────────────────────────────────────────────────────
-  build-release:
-    name: Build Release APK (signed)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    if: >
-      github.event_name == 'workflow_dispatch' && github.event.inputs.build_release == 'true' ||
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
-    needs: build-debug
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Grant execute permission for Gradle wrapper
-        run: chmod +x vocalize-android/gradlew
-
-      - name: Cache Gradle files
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('vocalize-android/**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Set up Gradle wrapper jar (if not in repo)
-        working-directory: vocalize-android
-        run: |
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            gradle wrapper --gradle-version=8.7 --distribution-type=bin
-          fi
-
-      - name: Decode keystore
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > vocalize-android/app/keystore.jks
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-
-      - name: Build Release APK (signed)
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
-        working-directory: vocalize-android
-        run: |
-          ./gradlew assembleRelease --no-daemon \
-            -Pandroid.injected.signing.store.file=$PWD/app/keystore.jks \
-            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
-            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
-
-      - name: Build Release APK (unsigned fallback)
-        if: ${{ secrets.KEYSTORE_BASE64 == '' }}
-        working-directory: vocalize-android
-        run: ./gradlew assembleRelease --no-daemon
-
-      - name: Get Release APK info
-        id: release_apk_info
-        working-directory: vocalize-android
-        run: |
-          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
-          if [ -n "$APK_PATH" ]; then
-            echo "path=$APK_PATH" >> $GITHUB_OUTPUT
-            echo "size=$(du -sh "$APK_PATH" | cut -f1)" >> $GITHUB_OUTPUT
-            echo "✅ Release APK: $APK_PATH"
-          else
-            echo "❌ Release APK not found!"
-            exit 1
-          fi
-
-      - name: Upload Release APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vocalize-release-${{ github.run_number }}
-          path: vocalize-android/app/build/outputs/apk/release/*.apk
-          retention-days: 90
-
-      - name: Create GitHub Release (on tags)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: vocalize-android/app/build/outputs/apk/release/*.apk
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Release job summary
-        run: |
-          echo "## 🚀 Vocalize Release Build" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| APK size | ${{ steps.release_apk_info.outputs.size }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Release APK uploaded as artifact \`vocalize-release-${{ github.run_number }}\`." >> $GITHUB_STEP_SUMMARY
+          echo "✅ Debug APK uploaded & used for GitHub Release." >> $GITHUB_STEP_SUMMARY
 
   # ─────────────────────────────────────────────────────────────────────────
   lint:
