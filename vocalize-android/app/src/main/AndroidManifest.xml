@@ -99,17 +99,6 @@
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 
-        <!-- WorkManager initializer -->
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="merge">
-            <meta-data
-                android:name="com.vocalize.app.util.WorkManagerInitializer"
-                android:value="androidx.startup" />
-        </provider>
-
         <!-- FileProvider for sharing audio files -->
         <provider
             android:name="androidx.core.content.FileProvider"
