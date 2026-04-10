@@ -14,7 +14,7 @@ import com.vocalize.app.util.AudioFileManager
 import com.vocalize.app.util.BackupManager
 import com.vocalize.app.util.Constants
 import com.vocalize.app.util.DailyDigestWorker
-import com.vocalize.app.util.ReminderAlarmScheduler
+import com.vocalize.app.util.VoskTranscriber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -50,7 +50,8 @@ class SettingsViewModel @Inject constructor(
     private val memoRepository: MemoRepository,
     private val audioFileManager: AudioFileManager,
     private val backupManager: BackupManager,
-    private val alarmScheduler: ReminderAlarmScheduler
+    private val alarmScheduler: ReminderAlarmScheduler,
+    private val voskTranscriber: VoskTranscriber
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -190,6 +191,24 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(voskModelExists = false) }
             showSnackbar("Voice model deleted")
         }
+    }
+
+    fun downloadVoskModel() {
+        if (_uiState.value.isDownloadingModel) return
+        _uiState.update { it.copy(isDownloadingModel = true) }
+        voskTranscriber.downloadModel(
+            onProgress = { /* progress not used */ },
+            onComplete = { success ->
+                _uiState.update {
+                    it.copy(
+                        isDownloadingModel = false,
+                        voskModelExists = success
+                    )
+                }
+                showSnackbar(if (success) "Voice model downloaded" else "Download failed")
+                if (success) computeStorage()
+            }
+        )
     }
 
     fun deleteAllData() {

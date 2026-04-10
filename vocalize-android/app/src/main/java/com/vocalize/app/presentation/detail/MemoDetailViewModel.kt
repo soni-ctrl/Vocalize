@@ -32,7 +32,8 @@ data class DetailUiState(
     val isEditingNote: Boolean = false,
     val editedNote: String = "",
     val showReminderSheet: Boolean = false,
-    val showPlaylistSheet: Boolean = false
+    val showPlaylistSheet: Boolean = false,
+    val showCategorySheet: Boolean = false
 )
 
 @HiltViewModel
@@ -76,7 +77,8 @@ class MemoDetailViewModel @Inject constructor(
                 isEditingTitle = _uiState.value.isEditingTitle,
                 isEditingNote = _uiState.value.isEditingNote,
                 showReminderSheet = _uiState.value.showReminderSheet,
-                showPlaylistSheet = _uiState.value.showPlaylistSheet
+                showPlaylistSheet = _uiState.value.showPlaylistSheet,
+                showCategorySheet = _uiState.value.showCategorySheet
             ) }
         }
     }
@@ -167,6 +169,9 @@ class MemoDetailViewModel @Inject constructor(
     fun showPlaylistSheet() = _uiState.update { it.copy(showPlaylistSheet = true) }
     fun hidePlaylistSheet() = _uiState.update { it.copy(showPlaylistSheet = false) }
 
+    fun showCategorySheet() = _uiState.update { it.copy(showCategorySheet = true) }
+    fun hideCategorySheet() = _uiState.update { it.copy(showCategorySheet = false) }
+
     fun deleteMemo(onDeleted: () -> Unit) {
         viewModelScope.launch {
             val memo = _uiState.value.memo ?: return@launch
@@ -179,7 +184,13 @@ class MemoDetailViewModel @Inject constructor(
 
     fun updateCategory(categoryId: String?) {
         viewModelScope.launch {
-            memoRepository.updateCategory(memoId, categoryId, System.currentTimeMillis())
+            val validCategoryId = if (categoryId != null && _uiState.value.categories.none { it.id == categoryId }) {
+                null
+            } else {
+                categoryId
+            }
+            memoRepository.updateCategory(memoId, validCategoryId, System.currentTimeMillis())
+            _uiState.update { it.copy(showCategorySheet = false) }
         }
     }
 

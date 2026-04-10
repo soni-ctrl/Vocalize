@@ -22,6 +22,7 @@ import com.vocalize.app.presentation.components.MemoCard
 import com.vocalize.app.presentation.components.WaveformView
 import com.vocalize.app.presentation.components.ReminderBottomSheet
 import com.vocalize.app.presentation.components.AddToPlaylistBottomSheet
+import com.vocalize.app.presentation.components.SetCategoryBottomSheet
 import com.vocalize.app.presentation.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,7 +100,7 @@ fun MemoDetailScreen(
                                 DropdownMenuItem(
                                     text = { Text("Set category") },
                                     leadingIcon = { Icon(Icons.Default.Label, null) },
-                                    onClick = { showMenu = false }
+                                    onClick = { showMenu = false; viewModel.showCategorySheet() }
                                 )
                             }
                         }
@@ -379,6 +380,16 @@ fun MemoDetailScreen(
             playlists = uiState.playlists,
             onDismiss = viewModel::hidePlaylistSheet,
             onSelect = { viewModel.addToPlaylist(it) }
+        )
+    }
+
+    // Set category sheet
+    if (uiState.showCategorySheet) {
+        SetCategoryBottomSheet(
+            categories = uiState.categories,
+            currentCategoryId = memo?.categoryId,
+            onDismiss = viewModel::hideCategorySheet,
+            onSelect = viewModel::updateCategory
         )
     }
 

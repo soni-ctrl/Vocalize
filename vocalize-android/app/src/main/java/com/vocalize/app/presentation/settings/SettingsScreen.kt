@@ -99,10 +99,13 @@ fun SettingsScreen(
                 SettingsActionRow(
                     icon = if (uiState.voskModelExists) Icons.Default.Delete else Icons.Default.Download,
                     iconTint = if (uiState.voskModelExists) MaterialTheme.colorScheme.error else VocalizeAccentBlue,
-                    title = if (uiState.voskModelExists) "Delete Vosk model" else "Model not downloaded",
-                    subtitle = if (uiState.voskModelExists) "Free up ~40MB" else "Downloads automatically on first use",
-                    onClick = { if (uiState.voskModelExists) viewModel.deleteVoskModel() },
-                    enabled = uiState.voskModelExists
+                    title = if (uiState.voskModelExists) "Delete Vosk model" else if (uiState.isDownloadingModel) "Downloading model..." else "Download Vosk model",
+                    subtitle = if (uiState.voskModelExists) "Free up ~40MB" else "Required for offline transcription (~40MB)",
+                    onClick = {
+                        if (uiState.voskModelExists) viewModel.deleteVoskModel()
+                        else viewModel.downloadVoskModel()
+                    },
+                    enabled = !uiState.isDownloadingModel
                 )
             }
 

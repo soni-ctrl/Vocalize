@@ -27,6 +27,7 @@ class MemoRepository @Inject constructor(
     fun getMemosByCategory(categoryId: String): Flow<List<MemoEntity>> = memoDao.getMemosByCategory(categoryId)
     fun getUpcomingReminders(now: Long): Flow<List<MemoEntity>> = memoDao.getUpcomingReminders(now)
     fun getMemosByDate(dayStart: Long, dayEnd: Long): Flow<List<MemoEntity>> = memoDao.getMemosByDate(dayStart, dayEnd)
+    fun getMemosByReminderDate(start: Long, end: Long): Flow<List<MemoEntity>> = memoDao.getMemosByReminderDate(start, end)
     fun searchMemos(query: String): Flow<List<MemoEntity>> = memoDao.searchMemos(query)
     fun getFilteredMemos(
         categoryId: String?,

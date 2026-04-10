@@ -163,14 +163,35 @@ fun CalendarScreen(
                 }
             }
 
-            // Selected day memos
+            // Tabs for Memos and Reminders
+            TabRow(
+                selectedTabIndex = uiState.selectedTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                Tab(
+                    selected = uiState.selectedTab == 0,
+                    onClick = { viewModel.selectTab(0) },
+                    text = { Text("Memos") }
+                )
+                Tab(
+                    selected = uiState.selectedTab == 1,
+                    onClick = { viewModel.selectTab(1) },
+                    text = { Text("Reminders") }
+                )
+            }
+
+            // Selected day content
             AnimatedContent(
-                targetState = uiState.selectedDay,
+                targetState = Pair(uiState.selectedDay, uiState.selectedTab),
                 transitionSpec = {
                     fadeIn(tween(200)) togetherWith fadeOut(tween(150))
                 },
-                label = "day_memos"
-            ) { _ ->
+                label = "day_content"
+            ) { (_, tab) ->
+                val items = if (tab == 0) uiState.memosOnSelectedDay else uiState.remindersOnSelectedDay
+                val itemName = if (tab == 0) "memo" else "reminder"
                 Column {
                     Spacer(Modifier.height(8.dp))
                     Row(
@@ -182,18 +203,18 @@ fun CalendarScreen(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(VocalizeRed)
+                                .background(if (tab == 0) VocalizeRed else VocalizeOrange)
                         )
                         Text(
-                            text = if (uiState.memosOnSelectedDay.isEmpty()) "No memos for this day"
-                            else "${uiState.memosOnSelectedDay.size} memo${if (uiState.memosOnSelectedDay.size > 1) "s" else ""}",
+                            text = if (items.isEmpty()) "No ${itemName}s for this day"
+                            else "${items.size} ${itemName}${if (items.size > 1) "s" else ""}",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                     Spacer(Modifier.height(8.dp))
 
-                    if (uiState.memosOnSelectedDay.isEmpty()) {
+                    if (items.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -202,14 +223,14 @@ fun CalendarScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    Icons.Default.EventNote,
+                                    if (tab == 0) Icons.Default.EventNote else Icons.Default.Alarm,
                                     contentDescription = null,
                                     modifier = Modifier.size(48.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                                 )
                                 Spacer(Modifier.height(12.dp))
                                 Text(
-                                    "Tap the mic to record a memo\nfor this day",
+                                    if (tab == 0) "Tap the mic to record a memo\nfor this day" else "No reminders set for this day",
                                     textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -221,7 +242,7 @@ fun CalendarScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            itemsIndexed(uiState.memosOnSelectedDay, key = { _, m -> m.id }) { _, memo ->
+                            itemsIndexed(items, key = { _, m -> m.id }) { _, memo ->
                                 var visible by remember { mutableStateOf(false) }
                                 LaunchedEffect(memo.id) { visible = true }
                                 AnimatedVisibility(

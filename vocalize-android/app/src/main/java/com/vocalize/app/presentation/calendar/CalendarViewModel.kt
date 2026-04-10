@@ -17,6 +17,8 @@ data class CalendarUiState(
     val selectedMonth: Int = Calendar.getInstance().get(Calendar.MONTH),
     val selectedDay: Int = Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
     val memosOnSelectedDay: List<MemoEntity> = emptyList(),
+    val remindersOnSelectedDay: List<MemoEntity> = emptyList(),
+    val selectedTab: Int = 0, // 0 for memos, 1 for reminders
     val daysWithMemos: Set<Int> = emptySet(),
     val daysWithReminders: Set<Int> = emptySet(),
     val isLoading: Boolean = true
@@ -63,29 +65,37 @@ class CalendarViewModel @Inject constructor(
                 }
         }
 
-        // Observe day changes and load memos for that day
+        // Observe day changes and load memos and reminders for that day
         viewModelScope.launch {
             combine(_selectedYear, _selectedMonth, _selectedDay) { y, m, d -> Triple(y, m, d) }
                 .flatMapLatest { (year, month, day) ->
                     val (start, end) = getDayBounds(year, month, day)
-                    memoRepository.getMemosByDate(start, end)
+                    combine(
+                        memoRepository.getMemosByDate(start, end), // memos created on day
+                        memoRepository.getMemosByReminderDate(start, end) // memos with reminder on day
+                    ) { created, reminded -> Pair(created, reminded) }
                 }
-                .collect { memos ->
+                .collect { (created, reminded) ->
                     _uiState.update { state ->
                         state.copy(
                             selectedYear = _selectedYear.value,
                             selectedMonth = _selectedMonth.value,
                             selectedDay = _selectedDay.value,
-                            memosOnSelectedDay = memos
+                            memosOnSelectedDay = created,
+                            remindersOnSelectedDay = reminded
                         )
                     }
                 }
         }
     }
 
+    fun selectTab(tab: Int) {
+        _uiState.update { it.copy(selectedTab = tab) }
+    }
+
     fun selectDay(day: Int) {
         _selectedDay.value = day
-        _uiState.update { it.copy(selectedDay = day) }
+        _uiState.update { it.copy(selectedDay = day, selectedTab = 0) }
     }
 
     fun changeMonth(delta: Int) {
@@ -102,7 +112,9 @@ class CalendarViewModel @Inject constructor(
                 selectedYear = cal.get(Calendar.YEAR),
                 selectedMonth = cal.get(Calendar.MONTH),
                 selectedDay = 1,
+                selectedTab = 0,
                 memosOnSelectedDay = emptyList(),
+                remindersOnSelectedDay = emptyList(),
                 isLoading = true
             )
         }

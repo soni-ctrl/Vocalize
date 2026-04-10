@@ -58,6 +58,9 @@ interface MemoDao {
     @Query("SELECT COUNT(*) FROM memos")
     suspend fun getMemoCount(): Int
 
+    @Query("SELECT * FROM memos WHERE hasReminder = 1 AND reminderTime >= :start AND reminderTime < :end ORDER BY reminderTime ASC")
+    fun getMemosByReminderDate(start: Long, end: Long): Flow<List<MemoEntity>>
+
     @Query("SELECT SUM(duration) FROM memos")
     suspend fun getTotalDuration(): Long?
 
