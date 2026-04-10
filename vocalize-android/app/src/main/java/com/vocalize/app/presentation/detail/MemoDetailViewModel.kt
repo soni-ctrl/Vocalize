@@ -73,7 +73,7 @@ class MemoDetailViewModel @Inject constructor(
                 memoRepository.getAllTags(),
                 memoRepository.getTagsForMemo(memoId),
                 memoRepository.getRemindersForMemo(memoId)
-            ) { memo, categories, playlists, tags, memoTags, reminders ->
+            ) { memo: MemoEntity?, categories: List<CategoryEntity>, playlists: List<PlaylistEntity>, tags: List<TagEntity>, memoTags: List<TagEntity>, reminders: List<ReminderEntity> ->
                 DetailUiState(
                     memo = memo,
                     categories = categories,

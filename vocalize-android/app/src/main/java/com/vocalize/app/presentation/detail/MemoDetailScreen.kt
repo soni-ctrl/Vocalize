@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
@@ -242,6 +243,7 @@ fun MemoDetailScreen(
                 Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                     Text("Tags", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
+                    @OptIn(ExperimentalLayoutApi::class)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         uiState.memoTags.forEach { tag ->
                             AssistChip(
