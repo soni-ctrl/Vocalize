@@ -26,7 +26,7 @@ fun AddToPlaylistBottomSheet(
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartialExpansion = true)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
 

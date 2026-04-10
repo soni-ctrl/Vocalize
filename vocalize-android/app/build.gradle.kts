@@ -87,6 +87,13 @@ dependencies {
     // Vosk Offline ASR
     implementation(libs.vosk.android)
 
+    // Media Session
+    implementation(libs.androidx.media)
+
+    // Google APIs
+    implementation(libs.google.api.client.android)
+    implementation(libs.google.api.services.drive)
+
     // DataStore Preferences
     implementation(libs.datastore.preferences)
 

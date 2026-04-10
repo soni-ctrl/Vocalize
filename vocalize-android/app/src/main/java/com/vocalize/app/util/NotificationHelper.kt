@@ -72,7 +72,7 @@ class NotificationHelper @Inject constructor(
             .setContentIntent(openPending)
             .addAction(R.drawable.ic_play, "Play", openPending)
             .addAction(R.drawable.ic_alarm, "Snooze", snoozePending)
-            .addAction(R.drawable.ic_close, "Dismiss", dismissPending)
+            .addAction(R.drawable.ic_delete, "Dismiss", dismissPending)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
@@ -101,7 +101,7 @@ class NotificationHelper @Inject constructor(
                 if (isPlaying) "Pause" else "Play",
                 playPauseIntent
             )
-            .addAction(R.drawable.ic_close, "Stop", stopIntent)
+            .addAction(R.drawable.ic_delete, "Stop", stopIntent)
             .setOngoing(isPlaying)
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
