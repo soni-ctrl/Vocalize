@@ -87,6 +87,9 @@ dependencies {
     // Vosk Offline ASR
     implementation(libs.vosk.android)
 
+    // Media Session
+    implementation(libs.androidx.media)
+
     // DataStore Preferences
     implementation(libs.datastore.preferences)
 
