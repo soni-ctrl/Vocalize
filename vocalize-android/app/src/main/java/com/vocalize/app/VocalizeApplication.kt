@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import com.vocalize.app.util.CrashReporter
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -11,6 +12,7 @@ class VocalizeApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        CrashReporter.init(this)
         createNotificationChannels()
     }
 

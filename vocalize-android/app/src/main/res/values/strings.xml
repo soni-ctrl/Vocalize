@@ -137,6 +137,16 @@
     <string name="action_edit">Edit</string>
     <string name="action_share">Share</string>
     <string name="action_import">Import audio</string>
+    <string name="action_close">Close</string>
+
+    <!-- Crash report -->
+    <string name="crash_report_title">Oops — the app has crashed</string>
+    <string name="crash_report_subtitle">A crash report is ready. Copy the details and share them for debugging.</string>
+    <string name="crash_report_copy">Copy crash report</string>
+    <string name="crash_report_close">Close app</string>
+    <string name="crash_report_copied">Crash report copied to clipboard</string>
+    <string name="crash_report_clipboard_label">Vocalize crash report</string>
+    <string name="crash_report_no_details">Crash details are unavailable.</string>
 
     <!-- Errors / States -->
     <string name="error_recording_failed">Recording failed. Please try again.</string>
