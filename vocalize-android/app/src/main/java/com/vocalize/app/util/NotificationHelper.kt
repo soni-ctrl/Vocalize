@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import androidx.media.session.MediaSessionCompat
+import android.support.v4.media.session.MediaSessionCompat
 import com.vocalize.app.MainActivity
 import com.vocalize.app.R
 import com.vocalize.app.VocalizeApplication

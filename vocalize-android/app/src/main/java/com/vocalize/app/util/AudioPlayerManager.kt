@@ -3,8 +3,8 @@ package com.vocalize.app.util
 import android.content.Context
 import android.media.MediaPlayer
 import android.os.Build
-import androidx.media.session.MediaSessionCompat
-import androidx.media.session.PlaybackStateCompat
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,7 +51,7 @@ class AudioPlayerManager @Inject constructor(
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() { togglePlayPause() }
                 override fun onPause() { togglePlayPause() }
-                override fun onStop() { release() }
+                override fun onStop() { this@AudioPlayerManager.release() }
                 override fun onSeekTo(pos: Long) { seekTo(pos.toInt()) }
                 override fun onSkipToNext() { onTrackCompleted?.invoke() }
                 override fun onSkipToPrevious() {}
