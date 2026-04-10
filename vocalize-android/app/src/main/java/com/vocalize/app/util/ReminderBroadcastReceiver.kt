@@ -35,6 +35,12 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
                     }
                 }
             }
+            Constants.ACTION_SHOW_NOTE -> {
+                notificationHelper.showReminderNoteNotification(memoId, memoTitle)
+            }
+            Constants.ACTION_BACK_TO_REMINDER -> {
+                notificationHelper.showReminderNotification(memoId, memoTitle)
+            }
             Constants.ACTION_SNOOZE -> {
                 CoroutineScope(Dispatchers.IO).launch {
                     val memo = memoRepository.getMemoById(memoId) ?: return@launch

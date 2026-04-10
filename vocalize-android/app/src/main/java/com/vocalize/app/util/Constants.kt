@@ -11,6 +11,8 @@ object Constants {
     const val ACTION_PLAY = "com.vocalize.app.ACTION_PLAY"
     const val ACTION_PLAY_AUDIO = "com.vocalize.app.ACTION_PLAY_AUDIO"
     const val ACTION_REPLAY_AUDIO = "com.vocalize.app.ACTION_REPLAY_AUDIO"
+    const val ACTION_SHOW_NOTE = "com.vocalize.app.ACTION_SHOW_NOTE"
+    const val ACTION_BACK_TO_REMINDER = "com.vocalize.app.ACTION_BACK_TO_REMINDER"
     const val ACTION_SNOOZE = "com.vocalize.app.ACTION_SNOOZE"
     const val ACTION_DISMISS = "com.vocalize.app.ACTION_DISMISS"
     const val EXTRA_MEMO_ID = "memo_id"

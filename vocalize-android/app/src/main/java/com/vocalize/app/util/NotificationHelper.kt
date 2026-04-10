@@ -11,16 +11,23 @@ import android.support.v4.media.session.MediaSessionCompat
 import com.vocalize.app.MainActivity
 import com.vocalize.app.R
 import com.vocalize.app.VocalizeApplication
+import com.vocalize.app.data.repository.MemoRepository
 import com.vocalize.app.service.PlaybackService
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class NotificationHelper @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val memoRepository: MemoRepository
 ) {
     private val notificationManager = context.getSystemService(NotificationManager::class.java)
+    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun showReminderNotification(memoId: String, memoTitle: String) {
         val notifId = memoId.hashCode()
@@ -52,22 +59,15 @@ class NotificationHelper @Inject constructor(
             )
         }
 
-        val replayIntent = Intent(context, PlaybackService::class.java).apply {
-            action = Constants.ACTION_REPLAY_AUDIO
+        val noteIntent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
+            action = Constants.ACTION_SHOW_NOTE
             putExtra(Constants.EXTRA_MEMO_ID, memoId)
             putExtra(Constants.EXTRA_MEMO_TITLE, memoTitle)
         }
-        val replayPending = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            PendingIntent.getForegroundService(
-                context, notifId + 5, replayIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-        } else {
-            PendingIntent.getService(
-                context, notifId + 5, replayIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-        }
+        val notePending = PendingIntent.getBroadcast(
+            context, notifId + 5, noteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         val snoozeIntent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
             action = Constants.ACTION_SNOOZE
@@ -107,7 +107,7 @@ class NotificationHelper @Inject constructor(
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openPending)
             .addAction(R.drawable.ic_play, "Play", playPending)
-            .addAction(R.drawable.ic_mic, "Once more", replayPending)
+            .addAction(R.drawable.ic_mic, "Note", notePending)
             .addAction(R.drawable.ic_alarm, "Snooze", snoozePending)
             .addAction(R.drawable.ic_delete, "Dismiss", dismissPending)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
@@ -119,6 +119,48 @@ class NotificationHelper @Inject constructor(
         }
 
         notificationManager.notify(notifId, builder.build())
+    }
+
+    fun showReminderNoteNotification(memoId: String, memoTitle: String) {
+        val notifId = memoId.hashCode()
+
+        coroutineScope.launch {
+            val memo = memoRepository.getMemoById(memoId)
+            val noteText = memo?.textNote?.takeIf { it.isNotBlank() } ?: "No notes available."
+
+            val backIntent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
+                action = Constants.ACTION_BACK_TO_REMINDER
+                putExtra(Constants.EXTRA_MEMO_ID, memoId)
+                putExtra(Constants.EXTRA_MEMO_TITLE, memoTitle)
+            }
+            val backPending = PendingIntent.getBroadcast(
+                context, notifId + 6, backIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val dismissIntent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
+                action = Constants.ACTION_DISMISS
+                putExtra(Constants.EXTRA_MEMO_ID, memoId)
+            }
+            val dismissPending = PendingIntent.getBroadcast(
+                context, notifId + 2, dismissIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val builder = NotificationCompat.Builder(context, VocalizeApplication.CHANNEL_REMINDERS)
+                .setSmallIcon(R.drawable.ic_mic)
+                .setContentTitle("Memo notes: $memoTitle")
+                .setContentText(noteText)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .addAction(0, "Back", backPending)
+                .addAction(R.drawable.ic_delete, "Dismiss", dismissPending)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(noteText))
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+
+            notificationManager.notify(notifId, builder.build())
+        }
     }
 
     fun buildPlaybackNotification(
