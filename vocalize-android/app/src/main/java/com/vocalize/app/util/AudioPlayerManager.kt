@@ -2,9 +2,9 @@ package com.vocalize.app.util
 
 import android.content.Context
 import android.media.MediaPlayer
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Build
-import androidx.media.session.MediaSessionCompat
-import androidx.media.session.PlaybackStateCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,7 @@ class AudioPlayerManager @Inject constructor(
 ) {
     private var mediaPlayer: MediaPlayer? = null
     private var crossfadePlayer: MediaPlayer? = null
-    private var mediaSession: MediaSessionCompat? = null
+    private var mediaSession: MediaSession? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     var onPositionSave: ((String, Long) -> Unit)? = null
@@ -47,8 +47,8 @@ class AudioPlayerManager @Inject constructor(
     }
 
     private fun setupMediaSession() {
-        mediaSession = MediaSessionCompat(context, "VocalizeSession").apply {
-            setCallback(object : MediaSessionCompat.Callback() {
+        mediaSession = MediaSession(context, "VocalizeSession").apply {
+            setCallback(object : MediaSession.Callback() {
                 override fun onPlay() { togglePlayPause() }
                 override fun onPause() { togglePlayPause() }
                 override fun onStop() { release() }
@@ -56,7 +56,7 @@ class AudioPlayerManager @Inject constructor(
                 override fun onSkipToNext() { onTrackCompleted?.invoke() }
                 override fun onSkipToPrevious() {}
             })
-            setActive(true)
+            isActive = true
         }
     }
 
@@ -201,18 +201,18 @@ class AudioPlayerManager @Inject constructor(
     }
 
     private fun updateMediaSessionState(playing: Boolean) {
-        val state = PlaybackStateCompat.Builder()
+        val state = PlaybackState.Builder()
             .setActions(
-                PlaybackStateCompat.ACTION_PLAY or
-                PlaybackStateCompat.ACTION_PAUSE or
-                PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                PlaybackStateCompat.ACTION_STOP or
-                PlaybackStateCompat.ACTION_SEEK_TO or
-                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                PlaybackState.ACTION_PLAY or
+                PlaybackState.ACTION_PAUSE or
+                PlaybackState.ACTION_PLAY_PAUSE or
+                PlaybackState.ACTION_STOP or
+                PlaybackState.ACTION_SEEK_TO or
+                PlaybackState.ACTION_SKIP_TO_NEXT or
+                PlaybackState.ACTION_SKIP_TO_PREVIOUS
             )
             .setState(
-                if (playing) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                if (playing) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED,
                 _playbackState.value.currentPosition.toLong(),
                 _playbackState.value.playbackSpeed
             )
@@ -220,7 +220,7 @@ class AudioPlayerManager @Inject constructor(
         mediaSession?.setPlaybackState(state)
     }
 
-    fun getMediaSessionToken(): MediaSessionCompat.Token? = mediaSession?.sessionToken
+    fun getMediaSessionToken(): MediaSession.Token? = mediaSession?.sessionToken
 
     fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
 
@@ -260,7 +260,7 @@ class AudioPlayerManager @Inject constructor(
     fun destroy() {
         release()
         scope.cancel()
-        mediaSession?.setActive(false)
+        mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
     }
