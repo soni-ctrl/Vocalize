@@ -1,0 +1,363 @@
+Here’s an exhaustive, production‑ready specification for your advanced voice reminder app – Vocalize. It covers every screen, button, animation, file, feature detail, and internal storage mechanism. No Wear OS, no paid cloud credentials (uses free Google Drive backup), but includes offline voice‑to‑text using Vosk (free, no API key). Everything is designed for Android (APK).
+
+---
+
+1. APP OVERVIEW
+
+Name: Vocalize
+Package: com.yourapp.vocalize
+Minimum SDK: Android 8.0 (API 26) – for broad compatibility
+Target SDK: Android 14 (API 34)
+Architecture: MVVM + Clean Architecture (separate data, domain, presentation layers)
+UI Toolkit: Jetpack Compose (fully declarative UI)
+Primary Language: Kotlin
+Database: Room (for metadata)
+Audio files: Stored in internal storage (app‑private, no READ_EXTERNAL_STORAGE needed)
+Backup: Google Drive via AppDataFolder (free, user‑authenticated, no backend cost)
+Voice‑to‑Text: Vosk (offline, 40MB model downloaded once, no credentials)
+Animations: Lottie + Compose Animations (shared transitions, pulse, ripple)
+
+---
+
+2. FULL SCREEN BY SCREEN DESIGN (UI + BUTTONS + ANIMATIONS)
+
+Screen 1: Splash Screen
+
+· Purpose: Branding + preload Vosk model (if not present) in background.
+· UI: Centered app logo + name, subtle fade‑in animation (Lottie).
+· Buttons: None – auto‑navigate to Home after 1.5s or when ready.
+· Files needed: SplashScreen.kt, logo.json (Lottie), splash_background.xml (optional).
+
+Screen 2: Home Screen (Main Dashboard)
+
+· Layout:
+  · Top bar: App name “Vocalize”, profile icon (opens settings later).
+  · Floating Action Button (FAB) – large, red with mic icon, pulsates when idle.
+  · Below FAB: 3 tabs (swipe / tap):
+    1. Recents – last 10 voice memos (list cards).
+    2. All Memos – paginated list of all recordings.
+    3. Playlists – user‑created playlists.
+  · Bottom navigation: Home (current), Calendar, Search, Profile.
+· Buttons & actions:
+  · FAB tap → open full‑screen recorder (Screen 3).
+  · Memo card (in Recents/All Memos) shows: title (or “Voice Memo HH:MM”), duration, date. Card buttons: ▶ Play, ⏰ Set reminder, ⋮ (menu: edit title, delete, add to playlist).
+  · Playlist card – name, number of memos, ▶ Play all, ⋮.
+· Animations:
+  · FAB pulse (infinite slow scale).
+  · Cards slide up when loading.
+  · Ripple on button taps.
+· Files: HomeScreen.kt, MemoCard.kt, PlaylistCard.kt, HomeViewModel.kt.
+
+Screen 3: Voice Recorder (Full‑screen modal)
+
+· Triggered by: FAB tap.
+· UI elements:
+  · Top: Cancel (X) and Save (tick) buttons.
+  · Center: Animated waveform (real‑time mic level).
+  · Large record button (red circle) → toggles between recording / stop.
+  · When stopped: shows play preview button, and a text field for title (pre‑filled with voice‑to‑text transcription if enabled).
+  · Optional text note field (expandable).
+  · Below: “Set reminder after saving” toggle.
+· Behaviour:
+  · Tap record → mic permission check → starts recording, waveform animates.
+  · Tap stop → stops recording, shows preview.
+  · Tap save → saves audio file to internal storage, inserts metadata into Room, runs Vosk transcription in background, then closes and returns to Home with new memo at top.
+· Animations:
+  · Record button scales down/up on tap.
+  · Waveform bars (Compose Canvas + mic amplitude).
+  · Smooth transition from record to preview.
+· Files: RecorderScreen.kt, AudioRecorderManager.kt, WaveformView.kt.
+
+Screen 4: Memo Detail & Playback
+
+· Opened by: Tapping a memo card (not the play button).
+· UI:
+  · Top: Back arrow, title (editable), delete (trash), share, 3‑dot menu (add to playlist, export).
+  · Center: Large album‑art style icon (or waveform thumbnail).
+  · Playback controls: Play/Pause, Previous/Next (if playlist), SeekBar, speed selector (0.5x – 2x).
+  · Below: Reminder section – show current reminder (if any), “Set reminder” button.
+  · Text note section (editable).
+  · Transcription section (from Vosk) – auto‑generated, can be copied.
+· Buttons:
+  · “Set reminder” → opens time/date picker + repeat options (Daily, Weekly, Custom).
+  · “Add to playlist” → opens bottom sheet with existing playlists + “Create new”.
+· Animations:
+  · SeekBar thumb with spring effect.
+  · Speed selector wheel (snap).
+  · Reminder card slides in when set.
+· Files: MemoDetailScreen.kt, PlaybackControl.kt, ReminderBottomSheet.kt.
+
+Screen 5: Calendar View
+
+· Access: Bottom navigation “Calendar”.
+· UI: Month calendar grid (Compose Calendar library or custom). Days with reminders have a dot (color‑coded by category).
+· Tap a date → shows list of memos scheduled for that day, each with ▶ Play and edit icons.
+· Floating button → “Record new memo with reminder” – opens recorder, then after save asks for date/time.
+· Files: CalendarScreen.kt, CalendarViewModel.kt.
+
+Screen 6: Search & Filters
+
+· UI: Search bar (with voice input – microphone icon uses on‑device speech recognizer for text query).
+· Below: Filters – by category, date range, has reminder, playlist.
+· Results appear as memo cards (same as Home).
+· Animation: Search bar expands, results fade in.
+· Files: SearchScreen.kt.
+
+Screen 7: Profile / Settings
+
+· UI sections:
+  · Account – Sign in with Google (for Drive backup).
+  · Backup – “Backup now”, “Restore”, last backup timestamp.
+  · Voice‑to‑Text – toggle Offline transcription (Vosk), download language model (English, German, etc.).
+  · Appearance – Dark/Light/System, accent colour.
+  · Reminder defaults – default snooze time, notification sound.
+  · Storage – show used space, “Clear cache”.
+· Buttons: All standard toggle/button.
+· Files: SettingsScreen.kt, BackupManager.kt.
+
+Screen 8: Notification & Full‑screen reminder
+
+· When reminder fires:
+  · Notification with title “Time to listen: [memo title]”, actions: Play (opens app and plays), Snooze (10 min), Dismiss.
+  · If phone is unlocked, optional full‑screen intent (for Android 10+ using USE_FULL_SCREEN_INTENT permission) – shows large player card with play button.
+· Implementation: WorkManager + NotificationManager.
+
+---
+
+3. DETAILED FEATURE BREAKDOWN (EVERY FEATURE EXPLAINED)
+
+3.1 Core Recording & Storage
+
+· Internal storage path: /data/data/com.yourapp.vocalize/files/recordings/
+· File format: .m4a (AAC) – good quality, small size.
+· Naming convention: yyyyMMdd_HHmmss_uniqueID.m4a
+· Metadata (Room entity):
+  · id (UUID)
+  · title (String, user or auto‑generated)
+  · filePath (String)
+  · duration (Long ms)
+  · dateCreated (Long timestamp)
+  · dateModified
+  · hasReminder (Boolean)
+  · reminderTime (Long or null)
+  · repeatType (Enum: NONE, DAILY, WEEKLY, CUSTOM_DAYS)
+  · customDays (BitSet stored as String) – e.g., “1,3,5” for Mon/Wed/Fri
+  · categoryId (Foreign key)
+  · textNote (String)
+  · transcription (String, from Vosk)
+  · playlistIds (relation, many‑to‑many)
+
+3.2 Reminder & Notification Engine
+
+· How it works:
+  · When user sets reminder, app schedules a WorkRequest with setExact() (using AlarmManager for exact time).
+  · For repeats: after first trigger, WorkManager reschedules the next occurrence.
+  · Notification channel: “Voice Reminders” with high importance.
+· Permission handling: Request POST_NOTIFICATIONS (Android 13+), SCHEDULE_EXACT_ALARM (Android 12+). Show rationale dialog.
+
+3.3 Offline Voice‑to‑Text (Vosk)
+
+· Why no credentials: Vosk is open‑source, models are downloadable from their server without API key.
+· Integration:
+  · On first launch, download small English model (~40MB) to internal storage (/models/vosk-en).
+  · After saving a recording, pass the audio file path to Vosk recognizer (background thread).
+  · Result stored in transcription field.
+· User control: In Settings, user can delete model or download other languages.
+
+3.4 Cloud Backup via Google Drive (Free)
+
+· No paid credentials: Use Google Sign‑in + Drive API’s AppDataFolder. This folder is invisible to user, limited to app data, and does not require user to grant file access.
+· Backup contents:
+  · Room database export (JSON or SQLite file).
+  · All audio files (zip compressed).
+· Implementation:
+  · DriveBackupManager uses GoogleSignInClient and DriveResourceClient.
+  · Backup creates a timestamped folder inside AppDataFolder.
+  · Restore fetches latest backup, replaces local files and DB.
+· Limits: Each app gets 5MB free for metadata, but audio files count against user’s Drive quota. This is acceptable – user owns their data.
+
+3.5 Categories & Tags
+
+· Entity: Category(id, name, colorHex, iconResId)
+· Default: Work, Personal, Ideas, Shopping, Health.
+· UI: In Memo Detail, a chip field allows assigning a category. In Home, filter by category.
+
+3.6 Playlists
+
+· Entity: Playlist(id, name, createdAt) + join table PlaylistMemoCrossRef(playlistId, memoId)
+· Playlist screen: User can reorder memos (drag & drop). Play entire playlist sequentially with cross‑fade option (advanced).
+
+3.7 Import / Export
+
+· Import: Allow selecting .m4a or .mp3 from system file picker – copy into internal recordings folder, create metadata entry (title = filename).
+· Export: Long‑press on memo → Share → choose format (audio only, or with metadata as text).
+
+3.8 Advanced Animations (List)
+
+· Record pulse: Lottie animation of expanding circles.
+· Waveform: Real‑time Canvas drawing with amplitude values from MediaRecorder’s getMaxAmplitude().
+· Card swipe to delete: Modifier.swipeable with dismiss animation.
+· Shared element transition: From Home card to Memo Detail – the card expands smoothly.
+· Micro‑interactions:
+  · Play button rotates 360° when starting.
+  · SeekBar thumb has spring damping.
+  · FAB morphs into stop button when recording.
+
+---
+
+4. COMPLETE FILE STRUCTURE (NUMBER OF FILES)
+
+4.1 Kotlin/Java source files (total ~55 files)
+
+UI Screens (Composables) – 12 files
+
+· SplashScreen.kt
+· HomeScreen.kt
+· RecorderScreen.kt
+· MemoDetailScreen.kt
+· CalendarScreen.kt
+· SearchScreen.kt
+· SettingsScreen.kt
+· PlaylistScreen.kt
+· CategoryManageScreen.kt
+· ReminderSetupBottomSheet.kt
+· AddToPlaylistBottomSheet.kt
+· WaveformView.kt
+
+ViewModels – 7 files
+
+· HomeViewModel.kt
+· RecorderViewModel.kt
+· MemoDetailViewModel.kt
+· CalendarViewModel.kt
+· SearchViewModel.kt
+· SettingsViewModel.kt
+· PlaylistViewModel.kt
+
+Data Layer (Repositories, DAOs, Entities) – 12 files
+
+· Memo.kt, Category.kt, Playlist.kt, PlaylistMemoCrossRef.kt
+· MemoDao.kt, CategoryDao.kt, PlaylistDao.kt
+· AppDatabase.kt (Room)
+· MemoRepository.kt
+· AudioFileManager.kt (saving, deleting, reading files)
+· NotificationScheduler.kt (WorkManager wrapper)
+· VoskTranscriber.kt
+
+Managers & Helpers – 10 files
+
+· AudioRecorderManager.kt (MediaRecorder lifecycle)
+· AudioPlayerManager.kt (MediaSessionService)
+· BackupManager.kt (Google Drive)
+· PermissionsHelper.kt
+· ReminderAlarmScheduler.kt (exact alarms)
+· NotificationHelper.kt
+· FileCompressor.kt (for backup)
+· Constants.kt
+· Utils.kt
+· WorkManagerInitializer.kt
+
+Services – 2 files
+
+· PlaybackService.kt (foreground service)
+· VoskService.kt (background transcription)
+
+Application & DI – 3 files
+
+· VocalizeApplication.kt
+· AppModule.kt (Dagger‑Hilt or Koin)
+· NavGraph.kt (Compose navigation)
+
+4.2 Resources
+
+· Drawable: 20 icons (mic, play, pause, delete, share, calendar, search, etc.) – vector XML.
+· Anim: 3 Lottie JSON files (splash, record pulse, success).
+· Layout: None (using Compose only).
+· Values: themes, strings, dimensions, colours (light/dark).
+· Raw: default notification sound.
+
+4.3 AndroidManifest.xml – includes permissions:
+
+```xml
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.INTERNET" /> <!-- for Drive backup -->
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+```
+
+4.4 Build.gradle dependencies (key ones)
+
+```gradle
+implementation "androidx.compose.ui:ui:1.6.0"
+implementation "androidx.room:room-runtime:2.6.0"
+implementation "com.google.android.gms:play-services-auth:20.7.0"
+implementation "com.google.android.gms:play-services-drive:17.0.0"
+implementation "com.airbnb.android:lottie-compose:6.0.0"
+implementation "com.alphacephei:vosk-android:0.3.47"
+implementation "androidx.work:work-runtime-ktx:2.9.0"
+```
+
+---
+
+5. PERMANENT STORAGE DETAILS (INTERNAL)
+
+· Why internal storage only: No need for READ_EXTERNAL_STORAGE or MEDIA permissions. Files are private to the app and survive app updates/uninstalls only if user chooses “Keep data” (Android 11+).
+· Backup mechanism: Use android:allowBackup="true" in manifest with android:fullBackupContent to include audio files. But we also implement manual Google Drive backup for cross‑device sync.
+· File access: context.filesDir.resolve("recordings") – create if not exists.
+· Database location: Default Room path – internal.
+· Storage cleanup: In Settings, “Clear unused audio” – deletes memos that are marked as deleted but not physically removed. Provide “Delete all data” option.
+
+---
+
+6. ADVANCED FEATURES (COMPLETE LIST)
+
+· Voice‑activated recording (optional toggle) – start recording when loud sound detected (uses MediaRecorder’s amplitude threshold).
+· Smart folders – auto‑categorise based on transcription keywords (e.g., “buy” → Shopping).
+· Pin to top – star important memos, they appear in a pinned section on Home.
+· Night mode auto‑switch – follows system.
+· Shake to record – using sensor listener.
+· Export as text – share transcription only.
+· Batch operations – multi‑select memos → delete, add to playlist, set category.
+· Notification snooze patterns – 5 min, 30 min, 1 hour, custom.
+· Playback resume – remembers position if paused in middle.
+· Audio visualiser – circle that pulses with amplitude during playback.
+· Daily digest notification – “You have 3 reminders for today” at 8 AM (configurable).
+
+---
+
+7. HOW TO IMPLEMENT EACH PART (BRIEF TECHNICAL STEPS)
+
+1. Setup project – Android Studio, add dependencies, create package structure.
+2. Implement audio recording – AudioRecorderManager with MediaRecorder, handle state and file output.
+3. Build Room database – write entities, DAOs, repository.
+4. Create UI screens – start with Home + Recorder, use remember and ViewModel.
+5. Add playback – MediaPlayer or ExoPlayer (lighter), manage in foreground service.
+6. Integrate notifications – NotificationHelper, WorkManager, set exact alarms.
+7. Add Vosk – download model on first run, run transcription in background using CoroutineScope(Dispatchers.IO).
+8. Google Drive backup – implement sign‑in, use DriveResourceClient to list/create folders, upload DB and zipped audio.
+9. Polish animations – add Lottie and Compose animations in each screen.
+10. Test – on multiple API levels (26 to 34), especially notification and alarm permissions.
+
+---
+
+8. DELIVERABLES (APK CONTENTS)
+
+· Single APK (no split ABI) – around 15MB + optional Vosk model downloaded on first run (40MB).
+· Proguard – keep Vosk and Drive classes.
+· Signed release build – ready for distribution.
+
+---
+
+9. FUTURE ENHANCEMENTS (POST MVP – NOT IN INITIAL APK)
+
+· Wear OS (you excluded)
+· Cloud sync via user’s own WebDAV (Nextcloud)
+· AI summary of long memos (using on‑device LLM)
+· Audio‑to‑calendar event creation (via Google Calendar API)
+
+---
+
+This specification is complete and ready for a development team to implement. Every button, screen, file, and feature has been described. You can now build the APK exactly as envisioned. Would you like me to provide the actual Kotlin code for any specific screen (e.g., RecorderScreen or BackupManager)?
