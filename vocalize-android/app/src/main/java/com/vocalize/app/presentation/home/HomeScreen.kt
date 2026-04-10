@@ -343,6 +343,7 @@ fun HomeScreen(
                         onLongPress = {},
                         onSelectionToggle = {},
                         categories = uiState.categories,
+                        memoCategories = uiState.memoCategories,
                         emptyText = "No recent memos. Tap the mic to start recording!"
                     )
                     1 -> MemoList(
@@ -360,6 +361,7 @@ fun HomeScreen(
                         onLongPress = { viewModel.enterBatchMode(it) },
                         onSelectionToggle = { viewModel.toggleMemoSelection(it) },
                         categories = uiState.categories,
+                        memoCategories = uiState.memoCategories,
                         emptyText = "No memos found.",
                         showDeleteAll = true,
                         onDeleteAll = { showDeleteAllConfirm = true }
@@ -430,6 +432,7 @@ private fun MemoList(
     onLongPress: (String) -> Unit,
     onSelectionToggle: (String) -> Unit,
     categories: List<CategoryEntity>,
+    memoCategories: Map<String, List<CategoryEntity>> = emptyMap(),
     emptyText: String,
     showDeleteAll: Boolean = false,
     onDeleteAll: () -> Unit = {}
@@ -482,7 +485,8 @@ private fun MemoList(
                     onPin = onPin,
                     onLongPress = onLongPress,
                     onSelectionToggle = onSelectionToggle,
-                    memoCategories = uiState.memoCategories
+                    categories = categories,
+                    memoCategories = memoCategories
                 )
             }
 
@@ -508,7 +512,8 @@ private fun MemoList(
                 onPin = onPin,
                 onLongPress = onLongPress,
                 onSelectionToggle = onSelectionToggle,
-                memoCategories = uiState.memoCategories
+                categories = categories,
+                memoCategories = memoCategories
             )
         }
 
@@ -544,6 +549,7 @@ private fun AnimatedMemoCard(
     onPin: (MemoEntity) -> Unit,
     onLongPress: (String) -> Unit,
     onSelectionToggle: (String) -> Unit,
+    categories: List<CategoryEntity>,
     memoCategories: Map<String, List<CategoryEntity>>
 ) {
     val animDelay = (index * 60).coerceAtMost(600)
