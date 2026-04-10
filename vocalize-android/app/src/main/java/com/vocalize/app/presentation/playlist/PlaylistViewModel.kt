@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vocalize.app.data.local.entity.MemoEntity
 import com.vocalize.app.data.local.entity.PlaylistEntity
+import com.vocalize.app.data.local.entity.PlaylistMemoCrossRef
 import com.vocalize.app.data.repository.MemoRepository
 import com.vocalize.app.util.AudioFileManager
 import com.vocalize.app.util.AudioPlayerManager
@@ -63,6 +64,17 @@ class PlaylistViewModel @Inject constructor(
                         isPlaying = state.isPlaying
                     )
                 }
+            }
+        }
+    }
+
+    val allMemos: StateFlow<List<MemoEntity>> = memoRepository.getAllMemos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addMemosToPlaylist(memoIds: List<String>) {
+        viewModelScope.launch {
+            memoIds.forEach { memoId ->
+                memoRepository.addMemoToPlaylist(PlaylistMemoCrossRef(playlistId, memoId))
             }
         }
     }

@@ -32,7 +32,10 @@ fun PlaylistScreen(
     viewModel: PlaylistViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val allMemos by viewModel.allMemos.collectAsState()
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showAddSelection by remember { mutableStateOf(false) }
+    val selectedMemoIds = remember { mutableStateListOf<String>() }
     var newName by remember { mutableStateOf("") }
 
     // Playback bar animation
@@ -121,7 +124,8 @@ fun PlaylistScreen(
                     onShuffle = {
                         val memos = uiState.memos.shuffled()
                         if (memos.isNotEmpty()) viewModel.playMemo(memos.first())
-                    }
+                    },
+                    onAddSelection = { showAddSelection = true }
                 )
             }
 
@@ -197,6 +201,73 @@ fun PlaylistScreen(
         }
     }
 
+    if (showAddSelection) {
+        val currentPlaylistMemoIds = uiState.memos.map { it.id }.toSet()
+        val availableMemos = allMemos.filterNot { it.id in currentPlaylistMemoIds }
+
+        AlertDialog(
+            onDismissRequest = {
+                selectedMemoIds.clear()
+                showAddSelection = false
+            },
+            title = { Text("Add memos to playlist") },
+            text = {
+                if (availableMemos.isEmpty()) {
+                    Text("No additional memos available to add.")
+                } else {
+                    Column(Modifier.heightIn(max = 320.dp)) {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(availableMemos) { memo ->
+                                val checked = memo.id in selectedMemoIds
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            if (checked) selectedMemoIds.remove(memo.id) else selectedMemoIds.add(memo.id)
+                                        }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = checked,
+                                        onCheckedChange = {
+                                            if (it) selectedMemoIds.add(memo.id) else selectedMemoIds.remove(memo.id)
+                                        }
+                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    Column {
+                                        Text(memo.title.ifBlank { "Untitled memo" }, fontWeight = FontWeight.Medium)
+                                        Text(formatDuration(memo.duration), style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (selectedMemoIds.isNotEmpty()) {
+                            viewModel.addMemosToPlaylist(selectedMemoIds.toList())
+                        }
+                        selectedMemoIds.clear()
+                        showAddSelection = false
+                    },
+                    enabled = selectedMemoIds.isNotEmpty()
+                ) {
+                    Text("Add selected")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    selectedMemoIds.clear()
+                    showAddSelection = false
+                }) { Text("Cancel") }
+            }
+        )
+    }
+
     // Rename dialog
     if (showRenameDialog) {
         AlertDialog(
@@ -230,7 +301,8 @@ private fun PlaylistHeaderCard(
     totalDuration: Long,
     isPlaying: Boolean,
     onPlayAll: () -> Unit,
-    onShuffle: () -> Unit
+    onShuffle: () -> Unit,
+    onAddSelection: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -270,15 +342,26 @@ private fun PlaylistHeaderCard(
                     Text(if (isPlaying) "Pause" else "Play All", fontWeight = FontWeight.SemiBold)
                 }
                 OutlinedButton(
-                    onClick = onShuffle,
+                    onClick = onAddSelection,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1f),
-                    enabled = memoCount > 0
+                    enabled = true
                 ) {
-                    Icon(Icons.Default.Shuffle, null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Shuffle", fontWeight = FontWeight.SemiBold)
+                    Text("Add", fontWeight = FontWeight.SemiBold)
                 }
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = onShuffle,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                enabled = memoCount > 0
+            ) {
+                Icon(Icons.Default.Shuffle, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Shuffle", fontWeight = FontWeight.SemiBold)
             }
         }
     }
