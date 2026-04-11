@@ -16,7 +16,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.Calendar
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -34,24 +33,8 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
 
         when (intent.action) {
             Constants.ACTION_PLAY -> {
-                val serviceIntent = Intent(context, ReminderToneService::class.java).apply {
-                    action = ReminderToneService.ACTION_START_REMINDER
-                    putExtra(Constants.EXTRA_MEMO_ID, memoId)
-                    putExtra(Constants.EXTRA_MEMO_TITLE, memoTitle)
-                    reminderId?.let { putExtra(Constants.EXTRA_REMINDER_ID, it) }
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        handleTriggeredReminder(memoId, memoTitle, reminderId)
-                    } finally {
-                        pendingResult.finish()
-                    }
-                }
+                ReminderWorker.enqueue(context, memoId, memoTitle, reminderId)
+                pendingResult.finish()
                 return
             }
             Constants.ACTION_SHOW_NOTE -> {
@@ -99,21 +82,19 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         pendingResult.finish()
     }
 
-    private suspend fun handleTriggeredReminder(memoId: String, memoTitle: String, reminderId: String?) {
-        if (reminderId == null) {
-            refreshMemoReminderFields(memoId)
-            return
-        }
+    private suspend fun handleSnoozeAction(context: Context, memoId: String, memoTitle: String, reminderId: String?) {
+        val snoozeMinutes = context.dataStore.data.first()[stringPreferencesKey(Constants.PREFS_DEFAULT_SNOOZE)]?.toIntOrNull() ?: 10
+        val snoozeTime = System.currentTimeMillis() + snoozeMinutes * 60 * 1000L
+        val tempReminder = ReminderEntity(
+            id = java.util.UUID.randomUUID().toString(),
+            memoId = memoId,
+            reminderTime = snoozeTime,
+            repeatType = RepeatType.NONE,
+            customDays = ""
+        )
 
-        val reminder = memoRepository.getReminderById(reminderId)
-        if (reminder != null) {
-            if (reminder.repeatType != RepeatType.NONE) {
-                alarmScheduler.scheduleNextRepeat(reminder, memoTitle)
-            } else {
-                memoRepository.deleteReminderById(reminder.id)
-            }
-        }
-
+        memoRepository.insertReminder(tempReminder)
+        alarmScheduler.scheduleReminder(tempReminder, memoTitle)
         refreshMemoReminderFields(memoId)
     }
 
@@ -134,21 +115,5 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
                 nextReminder.customDays
             )
         }
-    }
-
-    private suspend fun handleSnoozeAction(context: Context, memoId: String, memoTitle: String, reminderId: String?) {
-        val snoozeMinutes = context.dataStore.data.first()[stringPreferencesKey(Constants.PREFS_DEFAULT_SNOOZE)]?.toIntOrNull() ?: 10
-        val snoozeTime = System.currentTimeMillis() + snoozeMinutes * 60 * 1000L
-        val tempReminder = ReminderEntity(
-            id = java.util.UUID.randomUUID().toString(),
-            memoId = memoId,
-            reminderTime = snoozeTime,
-            repeatType = RepeatType.NONE,
-            customDays = ""
-        )
-
-        memoRepository.insertReminder(tempReminder)
-        alarmScheduler.scheduleReminder(tempReminder, memoTitle)
-        refreshMemoReminderFields(memoId)
     }
 }

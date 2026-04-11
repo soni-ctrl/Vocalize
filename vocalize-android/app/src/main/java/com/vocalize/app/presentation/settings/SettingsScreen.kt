@@ -26,6 +26,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vocalize.app.presentation.theme.*
 import com.vocalize.app.util.PermissionsHelper
 import java.text.SimpleDateFormat
@@ -40,6 +43,7 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var showSnoozeDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
@@ -50,6 +54,7 @@ fun SettingsScreen(
     var exportFolderUri by remember { mutableStateOf<Uri?>(null) }
     var allPermissionsGranted by remember { mutableStateOf(PermissionsHelper.areAllRequiredPermissionsGranted(context)) }
     var allFilesAccessGranted by remember { mutableStateOf(PermissionsHelper.hasManageExternalStoragePermission(context)) }
+    var alarmsAndRemindersGranted by remember { mutableStateOf(PermissionsHelper.hasAlarmsAndRemindersPermission(context)) }
     var previewToneUri by remember { mutableStateOf<Uri?>(null) }
     var isPreviewPlaying by remember { mutableStateOf(false) }
     val toneListScrollState = rememberScrollState()
@@ -81,6 +86,18 @@ fun SettingsScreen(
         uri?.let { viewModel.performImportBackup(it, context) }
     }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                allPermissionsGranted = PermissionsHelper.areAllRequiredPermissionsGranted(context)
+                allFilesAccessGranted = PermissionsHelper.hasManageExternalStoragePermission(context)
+                alarmsAndRemindersGranted = PermissionsHelper.hasAlarmsAndRemindersPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(uiState.snackbarMessage) {
         uiState.snackbarMessage?.let {
@@ -372,9 +389,26 @@ fun SettingsScreen(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 SettingsActionRow(
                     icon = Icons.Default.Schedule,
-                    iconTint = VocalizeAccentBlue,
-                    title = "Open alarm settings",
-                    subtitle = "Grant exact alarm permission for reminders",
+                    iconTint = if (alarmsAndRemindersGranted) VocalizeGreen else VocalizeOrange,
+                    title = "Alarms & Reminders",
+                    subtitle = if (alarmsAndRemindersGranted)
+                        "Alarms & Reminders permission granted — reminders will fire reliably"
+                    else
+                        "REQUIRED: Tap to grant Alarms & Reminders so every reminder fires even when app is closed",
+                    onClick = {
+                        PermissionsHelper.openAlarmsAndRemindersSettings(context)
+                        alarmsAndRemindersGranted = PermissionsHelper.hasAlarmsAndRemindersPermission(context)
+                    }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsActionRow(
+                    icon = Icons.Default.Alarm,
+                    iconTint = if (exactAlarmPermissionGranted) VocalizeGreen else VocalizeOrange,
+                    title = "Exact alarm permission",
+                    subtitle = if (exactAlarmPermissionGranted)
+                        "Exact alarm permission granted — precise reminder timing active"
+                    else
+                        "Grant exact alarm permission for precise reminder scheduling",
                     onClick = { PermissionsHelper.openAlarmSettings(context) }
                 )
             }

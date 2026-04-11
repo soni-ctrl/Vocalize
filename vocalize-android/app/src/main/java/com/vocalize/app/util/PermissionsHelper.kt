@@ -1,6 +1,7 @@
 package com.vocalize.app.util
 
 import android.Manifest
+import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -26,13 +27,15 @@ object PermissionsHelper {
 
     fun hasScheduleExactAlarmPermission(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val alarmManager =
-                context.getSystemService(android.app.AlarmManager::class.java)
+            val alarmManager = context.getSystemService(AlarmManager::class.java)
             alarmManager?.canScheduleExactAlarms() == true
         } else {
             true
         }
     }
+
+    fun hasAlarmsAndRemindersPermission(context: Context): Boolean =
+        hasScheduleExactAlarmPermission(context)
 
     fun hasReadMediaAudioPermission(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -73,12 +76,22 @@ object PermissionsHelper {
 
     fun openAlarmSettings(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                data = Uri.fromParts("package", context.packageName, null)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                openAppSettings(context)
             }
-            context.startActivity(intent)
+        } else {
+            openAppSettings(context)
         }
+    }
+
+    fun openAlarmsAndRemindersSettings(context: Context) {
+        openAlarmSettings(context)
     }
 
     fun hasManageExternalStoragePermission(context: Context): Boolean {
