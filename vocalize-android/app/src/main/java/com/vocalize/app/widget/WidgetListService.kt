@@ -32,22 +32,35 @@ class WidgetMemoListFactory(
 
     private var memos: List<WidgetMemoStore.MemoSummary> = emptyList()
 
-    override fun onCreate() { loadData() }
-    override fun onDataSetChanged() { loadData() }
+    override fun onCreate() {
+        Log.d(TAG, "onCreate widgetId=$appWidgetId")
+        loadData()
+    }
+
+    override fun onDataSetChanged() {
+        Log.d(TAG, "onDataSetChanged widgetId=$appWidgetId")
+        loadData()
+    }
 
     private fun loadData() {
         try {
+            Log.d(TAG, "loadData start widgetId=$appWidgetId")
             memos = WidgetMemoStore.loadCachedMemos(context)
+            Log.d(TAG, "loadData read cache widgetId=$appWidgetId count=${memos.size}")
             if (memos.isEmpty()) {
+                Log.d(TAG, "loadData cache empty, falling back to DB widgetId=$appWidgetId")
                 runBlocking(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(context)
                     WidgetMemoStore.updateFromDatabase(context, db.memoDao())
                 }
                 memos = WidgetMemoStore.loadCachedMemos(context)
+                Log.d(TAG, "loadData after DB fallback widgetId=$appWidgetId count=${memos.size}")
                 VocalizeWidget.requestWidgetRefresh(context)
             }
 
-            Log.d(TAG, "loadData widgetId=$appWidgetId count=${memos.size}")
+            memos.forEach { memo ->
+                Log.v(TAG, "loadData memo=${memo.id} title='${memo.title}' dateCreated=${memo.dateCreated}")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Unable to load widget memos for widgetId=$appWidgetId", e)
             VocalizeWidget.showCrashNotification(context, "Widget list failed to load", e)
@@ -62,12 +75,14 @@ class WidgetMemoListFactory(
     override fun getViewAt(position: Int): RemoteViews {
         val memo = memos.getOrNull(position)
         if (memo == null) {
+            Log.w(TAG, "getViewAt position=$position missing memo, showing loading placeholder")
             return RemoteViews(context.packageName, R.layout.widget_memo_item).apply {
                 setTextViewText(R.id.widget_item_title, "Loading…")
                 setTextViewText(R.id.widget_item_subtitle, "")
             }
         }
 
+        Log.d(TAG, "getViewAt position=$position memo=${memo.id} title='${memo.title}'")
         return RemoteViews(context.packageName, R.layout.widget_memo_item).apply {
             val displayTitle = memo.title.ifBlank { "Voice Memo" }
             setTextViewText(R.id.widget_item_title, displayTitle)

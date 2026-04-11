@@ -17,6 +17,7 @@ import com.vocalize.app.data.local.entity.ReminderLogEntity
 import com.vocalize.app.data.local.entity.TagEntity
 import com.vocalize.app.data.local.entity.MemoTagCrossRef
 import com.vocalize.app.data.local.entity.RepeatType
+import android.util.Log
 import com.vocalize.app.widget.VocalizeWidget
 import com.vocalize.app.widget.WidgetMemoStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -125,8 +126,15 @@ class MemoRepository @Inject constructor(
         refreshWidgetCache()
     }
 
+    companion object {
+        private const val TAG = "MemoRepository"
+    }
+
     private suspend fun refreshWidgetCache() = withContext(Dispatchers.IO) {
+        Log.d(TAG, "refreshWidgetCache: start")
         WidgetMemoStore.updateFromDatabase(context, memoDao)
+        val count = WidgetMemoStore.getCachedMemoCount(context)
+        Log.d(TAG, "refreshWidgetCache: complete cachedCount=$count")
         VocalizeWidget.requestWidgetRefresh(context)
     }
 

@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import com.vocalize.app.R
@@ -36,12 +37,15 @@ class VocalizeWidget : AppWidgetProvider() {
         super.onReceive(context, intent)
         when (intent.action) {
             ACTION_REFRESH -> {
+                Log.d(TAG, "onReceive ACTION_REFRESH")
                 val manager = AppWidgetManager.getInstance(context)
                 val ids = manager.getAppWidgetIds(ComponentName(context, VocalizeWidget::class.java))
+                Log.d(TAG, "onReceive ACTION_REFRESH widgetIds=${ids.joinToString()}")
                 ids.forEach { id ->
                     try {
                         manager.notifyAppWidgetViewDataChanged(id, R.id.widget_memo_list)
                         updateAppWidget(context, manager, id)
+                        Log.d(TAG, "onReceive ACTION_REFRESH updated widgetId=$id")
                     } catch (e: Exception) {
                         showCrashNotification(context, "Widget refresh failed", e)
                     }
@@ -87,6 +91,7 @@ class VocalizeWidget : AppWidgetProvider() {
         const val ACTION_PLAY_MEMO = "com.vocalize.app.widget.ACTION_PLAY_MEMO"
         const val ACTION_OPEN_RECORDER = "com.vocalize.app.widget.ACTION_OPEN_RECORDER"
 
+        private const val TAG = "VocalizeWidget"
         private const val PREFS_NAME = "vocalize_widget_prefs"
         private const val CRASH_CHANNEL_ID = "vocalize_widget_crash"
         private const val CRASH_NOTIF_ID = 9900
@@ -133,11 +138,15 @@ class VocalizeWidget : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_latest_memo_subtitle, "Tap record to add one")
             }
 
+            val latestMemoId = latestMemo?.id ?: "none"
+            val latestMemoTitle = latestMemo?.title ?: "none"
+            Log.d(TAG, "updateAppWidget widgetId=$appWidgetId count=$count latestMemo=$latestMemoId title='$latestMemoTitle'")
             appWidgetManager.updateAppWidget(appWidgetId, views)
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_memo_list)
         }
 
         fun requestWidgetRefresh(context: Context) {
+            Log.d(TAG, "requestWidgetRefresh")
             val intent = Intent(context, VocalizeWidget::class.java).apply {
                 action = ACTION_REFRESH
             }
