@@ -49,6 +49,7 @@ fun SettingsScreen(
     var allFilesAccessGranted by remember { mutableStateOf(PermissionsHelper.hasManageExternalStoragePermission(context)) }
     var previewToneUri by remember { mutableStateOf<Uri?>(null) }
     var isPreviewPlaying by remember { mutableStateOf(false) }
+    val toneListScrollState = rememberScrollState()
     val mediaPlayer = remember { MediaPlayer() }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -472,7 +473,13 @@ fun SettingsScreen(
             },
             title = { Text("Select reminder tone") },
             text = {
-                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(toneListScrollState),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     if (uiState.availableReminderTones.isEmpty()) {
                         Text("No audio files found in the selected folder or default Alarms folder.")
                     } else {

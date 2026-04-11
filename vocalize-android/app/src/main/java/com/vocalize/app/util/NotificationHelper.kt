@@ -133,6 +133,9 @@ class NotificationHelper @Inject constructor(
     fun updateReminderChannelSound(soundUri: Uri?) {
         reminderSoundUri = soundUri
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Recreate the reminder channel to ensure updated sound settings are applied.
+            notificationManager.deleteNotificationChannel(VocalizeApplication.CHANNEL_REMINDERS)
+            val soundToUse = soundUri ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             val reminderChannel = NotificationChannel(
                 VocalizeApplication.CHANNEL_REMINDERS,
                 "Voice Reminders",
@@ -142,7 +145,7 @@ class NotificationHelper @Inject constructor(
                 enableVibration(true)
                 enableLights(true)
                 setSound(
-                    soundUri ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    soundToUse,
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
