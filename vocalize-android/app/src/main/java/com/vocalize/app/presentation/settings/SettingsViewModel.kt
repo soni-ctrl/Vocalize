@@ -1,6 +1,8 @@
 package com.vocalize.app.presentation.settings
 
 import android.content.Context
+import android.content.Intent
+import android.media.MediaMetadataRetriever
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -25,6 +27,7 @@ import com.vocalize.app.util.BackupManager
 import com.vocalize.app.util.Constants
 import com.vocalize.app.util.DailyDigestWorker
 import com.vocalize.app.util.FileCompressor
+import com.vocalize.app.util.NotificationHelper
 import com.vocalize.app.util.ReminderAlarmScheduler
 import com.vocalize.app.util.VoskTranscriber
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,6 +42,15 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
+data class ReminderToneInfo(
+    val id: String,
+    val name: String,
+    val uri: String,
+    val durationMs: Long = 0L,
+    val sizeBytes: Long = 0L,
+    val mimeType: String? = null
+)
+
 data class SettingsUiState(
     val isDarkMode: Boolean = true,
     val voskEnabled: Boolean = true,
@@ -52,6 +64,12 @@ data class SettingsUiState(
     val signedInEmail: String = "",
     val isDownloadingModel: Boolean = false,
     val voskModelExists: Boolean = false,
+    val reminderToneFolderUri: String? = null,
+    val reminderToneFileUri: String? = null,
+    val reminderToneFileName: String = "Default reminder tone",
+    val reminderToneVolume: Int = 100,
+    val reminderToneFolderPath: String = Constants.DEFAULT_REMINDER_TONE_FOLDER,
+    val availableReminderTones: List<ReminderToneInfo> = emptyList(),
     val snoozeOptions: List<Int> = listOf(5, 10, 15, 30, 60),
     val dailyDigestEnabled: Boolean = false,
     val dailyDigestHour: Int = 8,
@@ -84,12 +102,15 @@ class SettingsViewModel @Inject constructor(
     private val fileCompressor: FileCompressor,
     private val backupManager: BackupManager,
     private val alarmScheduler: ReminderAlarmScheduler,
+    private val notificationHelper: NotificationHelper,
     private val voskTranscriber: VoskTranscriber
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private val gson = Gson()
+    private var currentToneFolderUri: String? = null
+    private var toneFilesLoaded = false
 
     init {
         loadPreferences()
@@ -99,6 +120,11 @@ class SettingsViewModel @Inject constructor(
     private fun loadPreferences() {
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
+                val toneFolderUri = prefs[stringPreferencesKey(Constants.PREFS_REMINDER_TONE_FOLDER_URI)]?.takeIf { it.isNotBlank() }
+                val toneFileUri = prefs[stringPreferencesKey(Constants.PREFS_NOTIF_SOUND)]?.takeIf { it.isNotBlank() }
+                val toneFileName = prefs[stringPreferencesKey(Constants.PREFS_REMINDER_TONE_NAME)] ?: "Default reminder tone"
+                val toneVolume = prefs[intPreferencesKey(Constants.PREFS_REMINDER_VOLUME)] ?: 100
+
                 _uiState.update {
                     it.copy(
                         isDarkMode = prefs[booleanPreferencesKey(Constants.PREFS_DARK_MODE)] ?: true,
@@ -109,8 +135,18 @@ class SettingsViewModel @Inject constructor(
                         isSignedIn = (prefs[stringPreferencesKey(Constants.PREFS_GOOGLE_ACCOUNT)] ?: "").isNotBlank(),
                         dailyDigestEnabled = prefs[booleanPreferencesKey("daily_digest_enabled")] ?: false,
                         dailyDigestHour = prefs[intPreferencesKey("daily_digest_hour")] ?: 8,
-                        accentColor = prefs[stringPreferencesKey("accent_color")] ?: "#E53935"
+                        accentColor = prefs[stringPreferencesKey("accent_color")] ?: "#E53935",
+                        reminderToneFolderUri = toneFolderUri,
+                        reminderToneFileUri = toneFileUri,
+                        reminderToneFileName = toneFileName,
+                        reminderToneVolume = toneVolume
                     )
+                }
+
+                if (!toneFilesLoaded || currentToneFolderUri != toneFolderUri) {
+                    currentToneFolderUri = toneFolderUri
+                    toneFilesLoaded = true
+                    loadReminderToneFiles(toneFolderUri)
                 }
             }
         }
@@ -173,6 +209,123 @@ class SettingsViewModel @Inject constructor(
     fun setAccentColor(colorHex: String) {
         viewModelScope.launch {
             context.dataStore.edit { it[stringPreferencesKey("accent_color")] = colorHex }
+        }
+    }
+
+    fun setReminderToneFolderUri(uri: Uri?) {
+        viewModelScope.launch {
+            if (uri != null) {
+                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+            }
+            context.dataStore.edit {
+                it[stringPreferencesKey(Constants.PREFS_REMINDER_TONE_FOLDER_URI)] = uri?.toString().orEmpty()
+            }
+            loadReminderToneFiles(uri?.toString())
+        }
+    }
+
+    fun setReminderTone(uri: Uri, name: String) {
+        viewModelScope.launch {
+            context.dataStore.edit {
+                it[stringPreferencesKey(Constants.PREFS_NOTIF_SOUND)] = uri.toString()
+                it[stringPreferencesKey(Constants.PREFS_REMINDER_TONE_NAME)] = name
+            }
+            notificationHelper.updateReminderChannelSound(uri)
+            _uiState.update { it.copy(reminderToneFileUri = uri.toString(), reminderToneFileName = name) }
+        }
+    }
+
+    fun setReminderVolume(volume: Int) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[intPreferencesKey(Constants.PREFS_REMINDER_VOLUME)] = volume }
+            _uiState.update { it.copy(reminderToneVolume = volume) }
+        }
+    }
+
+    private fun loadReminderToneFiles(folderUriString: String?) {
+        viewModelScope.launch {
+            val tones = withContext(Dispatchers.IO) {
+                buildToneList(folderUriString)
+            }
+            _uiState.update { it.copy(availableReminderTones = tones) }
+        }
+    }
+
+    private fun buildToneList(folderUriString: String?): List<ReminderToneInfo> {
+        val tones = mutableListOf<ReminderToneInfo>()
+        if (!folderUriString.isNullOrBlank()) {
+            val uri = Uri.parse(folderUriString)
+            val folder = DocumentFile.fromTreeUri(context, uri)
+            if (folder != null && folder.isDirectory) {
+                folder.listFiles().filter { it.isFile && isAudioType(it) }.forEach { child ->
+                    getToneInfoFromUri(child.uri, child.name ?: child.uri.lastPathSegment ?: "Tone")?.let { tones.add(it) }
+                }
+            }
+        }
+
+        if (tones.isEmpty()) {
+            val defaultFolder = File(Constants.DEFAULT_REMINDER_TONE_FOLDER)
+            defaultFolder.listFiles()?.filter { it.isFile && isAudioFile(it.name) }?.forEach { file ->
+                getToneInfoFromFile(file)?.let { tones.add(it) }
+            }
+        }
+
+        return tones.sortedBy { it.name }
+    }
+
+    private fun isAudioType(file: DocumentFile): Boolean {
+        return file.type?.startsWith("audio/") == true || isAudioFile(file.name.orEmpty())
+    }
+
+    private fun isAudioFile(name: String): Boolean {
+        return name.endsWith(".mp3", true) || name.endsWith(".wav", true) || name.endsWith(".m4a", true) || name.endsWith(".ogg", true) || name.endsWith(".flac", true)
+    }
+
+    private fun getToneInfoFromUri(uri: Uri, name: String): ReminderToneInfo? {
+        val mimeType = context.contentResolver.getType(uri)
+        val size = context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: 0L
+        val duration = runCatching {
+            MediaMetadataRetriever().apply {
+                setDataSource(context, uri)
+            }.use { retriever ->
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            }
+        }.getOrDefault(0L)
+        return ReminderToneInfo(id = uri.toString(), name = name, uri = uri.toString(), durationMs = duration, sizeBytes = size, mimeType = mimeType)
+    }
+
+    private fun getToneInfoFromFile(file: File): ReminderToneInfo? {
+        val duration = runCatching {
+            MediaMetadataRetriever().apply {
+                setDataSource(file.absolutePath)
+            }.use { retriever ->
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            }
+        }.getOrDefault(0L)
+        val mimeType = when {
+            file.name.endsWith(".mp3", true) -> "audio/mpeg"
+            file.name.endsWith(".wav", true) -> "audio/wav"
+            file.name.endsWith(".m4a", true) -> "audio/mp4"
+            file.name.endsWith(".ogg", true) -> "audio/ogg"
+            file.name.endsWith(".flac", true) -> "audio/flac"
+            else -> null
+        }
+        return ReminderToneInfo(id = file.absolutePath, name = file.name, uri = Uri.fromFile(file).toString(), durationMs = duration, sizeBytes = file.length(), mimeType = mimeType)
+    }
+
+    private fun formatDuration(durationMs: Long): String {
+        val seconds = durationMs / 1000
+        val minutes = seconds / 60
+        val remSeconds = seconds % 60
+        return "%d:%02d".format(minutes, remSeconds)
+    }
+
+    private fun formatFileSize(sizeBytes: Long): String {
+        return when {
+            sizeBytes >= 1_048_576 -> "%.1f MB".format(sizeBytes / 1_048_576f)
+            sizeBytes >= 1024 -> "%.1f KB".format(sizeBytes / 1024f)
+            else -> "$sizeBytes B"
         }
     }
 

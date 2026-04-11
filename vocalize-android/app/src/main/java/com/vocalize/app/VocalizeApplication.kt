@@ -3,11 +3,19 @@ package com.vocalize.app
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.vocalize.app.dataStore
+import com.vocalize.app.util.Constants
 import com.vocalize.app.util.CrashReporter
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -31,6 +39,11 @@ class VocalizeApplication : Application(), Configuration.Provider {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(NotificationManager::class.java)
 
+            val storedToneUri = runBlocking {
+                applicationContext.dataStore.data.first()[stringPreferencesKey(Constants.PREFS_NOTIF_SOUND)]
+            }?.takeIf { it.isNotBlank() }?.let(Uri::parse)
+            val soundUri = storedToneUri ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
             // Reminder channel
             val reminderChannel = NotificationChannel(
                 CHANNEL_REMINDERS,
@@ -40,6 +53,13 @@ class VocalizeApplication : Application(), Configuration.Provider {
                 description = "Notifications for scheduled voice memo reminders"
                 enableVibration(true)
                 enableLights(true)
+                setSound(
+                    soundUri,
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
             }
 
             // Playback channel

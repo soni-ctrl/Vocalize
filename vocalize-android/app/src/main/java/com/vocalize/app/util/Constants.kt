@@ -32,8 +32,12 @@ object Constants {
     const val PREFS_VOSK_ENABLED = "vosk_enabled"
     const val PREFS_DEFAULT_SNOOZE = "default_snooze"
     const val PREFS_NOTIF_SOUND = "notification_sound"
+    const val PREFS_REMINDER_TONE_FOLDER_URI = "reminder_tone_folder_uri"
+    const val PREFS_REMINDER_TONE_NAME = "reminder_tone_name"
+    const val PREFS_REMINDER_VOLUME = "reminder_volume"
     const val PREFS_LAST_BACKUP = "last_backup_time"
     const val PREFS_GOOGLE_ACCOUNT = "google_account"
+    const val DEFAULT_REMINDER_TONE_FOLDER = "/storage/emulated/0/Alarms"
 
     // Default categories
     val DEFAULT_CATEGORIES = listOf(

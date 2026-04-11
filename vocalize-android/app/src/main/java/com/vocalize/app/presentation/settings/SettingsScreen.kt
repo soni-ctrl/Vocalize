@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.net.Uri
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -40,9 +42,14 @@ fun SettingsScreen(
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
     var showDigestHourDialog by remember { mutableStateOf(false) }
+    var showToneListDialog by remember { mutableStateOf(false) }
     var showExportConfirmDialog by remember { mutableStateOf(false) }
     var exportFolderUri by remember { mutableStateOf<Uri?>(null) }
     var allPermissionsGranted by remember { mutableStateOf(PermissionsHelper.areAllRequiredPermissionsGranted(context)) }
+    var allFilesAccessGranted by remember { mutableStateOf(PermissionsHelper.hasManageExternalStoragePermission(context)) }
+    var previewToneUri by remember { mutableStateOf<Uri?>(null) }
+    var isPreviewPlaying by remember { mutableStateOf(false) }
+    val mediaPlayer = remember { MediaPlayer() }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
@@ -54,6 +61,13 @@ fun SettingsScreen(
         if (uri != null) {
             exportFolderUri = uri
             showExportConfirmDialog = true
+        }
+    }
+    val toneFolderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.setReminderToneFolderUri(uri)
         }
     }
     val backupFileLauncher = rememberLauncherForActivityResult(
@@ -68,6 +82,47 @@ fun SettingsScreen(
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
         }
+    }
+
+    DisposableEffect(mediaPlayer) {
+        onDispose {
+            if (mediaPlayer.isPlaying) {
+                mediaPlayer.stop()
+            }
+            mediaPlayer.release()
+        }
+    }
+
+    fun playTone(uri: Uri) {
+        try {
+            if (mediaPlayer.isPlaying) {
+                mediaPlayer.stop()
+            }
+            mediaPlayer.reset()
+            mediaPlayer.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            mediaPlayer.setDataSource(context, uri)
+            mediaPlayer.setVolume(uiState.reminderToneVolume / 100f, uiState.reminderToneVolume / 100f)
+            mediaPlayer.setOnCompletionListener { isPreviewPlaying = false }
+            mediaPlayer.prepare()
+            mediaPlayer.start()
+            previewToneUri = uri
+            isPreviewPlaying = true
+        } catch (error: Exception) {
+            error.printStackTrace()
+        }
+    }
+
+    fun stopPreview() {
+        if (mediaPlayer.isPlaying) {
+            mediaPlayer.stop()
+        }
+        isPreviewPlaying = false
+        previewToneUri = null
     }
 
     Scaffold(
@@ -216,6 +271,35 @@ fun SettingsScreen(
                         )
                     }
                 }
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsActionRow(
+                    icon = Icons.Default.Folder,
+                    iconTint = VocalizeAccentBlue,
+                    title = "Reminder tone folder",
+                    subtitle = uiState.reminderToneFolderUri?.let { "Folder section selected" } ?: "Default: ${uiState.reminderToneFolderPath}",
+                    onClick = { toneFolderLauncher.launch(null) }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsActionRow(
+                    icon = Icons.Default.MusicNote,
+                    iconTint = VocalizeGreen,
+                    title = "Reminder tone",
+                    subtitle = uiState.reminderToneFileName,
+                    onClick = { showToneListDialog = true }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Reminder volume: ${uiState.reminderToneVolume}%",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
+                )
+                Slider(
+                    value = uiState.reminderToneVolume / 100f,
+                    onValueChange = { viewModel.setReminderVolume((it * 100).toInt()) },
+                    valueRange = 0f..1f,
+                    steps = 4,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
 
             // ── Categories ──────────────────────────────────────────
@@ -250,6 +334,22 @@ fun SettingsScreen(
                     title = "Grant storage permissions",
                     subtitle = "Allow backup export/import and storage access",
                     onClick = { permissionLauncher.launch(PermissionsHelper.getRequiredPermissions()) }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsActionRow(
+                    icon = Icons.Default.FileOpen,
+                    iconTint = VocalizeAccentBlue,
+                    title = "Grant all files access",
+                    subtitle = if (allFilesAccessGranted) "All files access granted" else "Allow access to tone folders and external audio",
+                    onClick = { PermissionsHelper.openManageAllFilesAccessSettings(context) }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsActionRow(
+                    icon = Icons.Default.Schedule,
+                    iconTint = VocalizeAccentBlue,
+                    title = "Open alarm settings",
+                    subtitle = "Grant exact alarm permission for reminders",
+                    onClick = { PermissionsHelper.openAlarmSettings(context) }
                 )
             }
 
@@ -360,6 +460,82 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showExportConfirmDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showToneListDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showToneListDialog = false
+                stopPreview()
+            },
+            title = { Text("Select reminder tone") },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (uiState.availableReminderTones.isEmpty()) {
+                        Text("No audio files found in the selected folder or default Alarms folder.")
+                    } else {
+                        uiState.availableReminderTones.forEach { tone ->
+                            val toneUri = Uri.parse(tone.uri)
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { previewToneUri = toneUri }
+                                    .padding(vertical = 4.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(tone.name, fontWeight = FontWeight.SemiBold)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        "${tone.durationMs / 1000 / 60}:${String.format("%02d", (tone.durationMs / 1000) % 60)} • ${when {
+                                            tone.sizeBytes >= 1_048_576 -> "%.1f MB".format(tone.sizeBytes / 1_048_576f)
+                                            tone.sizeBytes >= 1024 -> "%.1f KB".format(tone.sizeBytes / 1024f)
+                                            else -> "${tone.sizeBytes} B"
+                                        }}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(onClick = {
+                                            if (isPreviewPlaying && previewToneUri == toneUri) {
+                                                stopPreview()
+                                            } else {
+                                                playTone(toneUri)
+                                            }
+                                        }) {
+                                            Text(if (isPreviewPlaying && previewToneUri == toneUri) "Stop" else "Play")
+                                        }
+                                        Button(onClick = {
+                                            viewModel.setReminderTone(toneUri, tone.name)
+                                            showToneListDialog = false
+                                            stopPreview()
+                                        }) {
+                                            Text("Set tone")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showToneListDialog = false
+                    stopPreview()
+                }) {
+                    Text("Close")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showToneListDialog = false
+                    stopPreview()
+                }) { Text("Cancel") }
             }
         )
     }
