@@ -129,7 +129,7 @@
         <!-- Widget RemoteViewsService for memo list -->
         <service
             android:name=".widget.WidgetListService"
-            android:exported="false"
+            android:exported="true"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 
         <!-- WorkManager system foreground service for expedited reminder workers -->
