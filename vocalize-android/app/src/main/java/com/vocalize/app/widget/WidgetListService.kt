@@ -1,8 +1,10 @@
 package com.vocalize.app.widget
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.util.Log
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.vocalize.app.R
@@ -14,13 +16,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
 class WidgetListService : RemoteViewsService() {
-    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory =
-        WidgetMemoListFactory(applicationContext)
+    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
+        val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+        return WidgetMemoListFactory(applicationContext, appWidgetId)
+    }
 }
 
 class WidgetMemoListFactory(
-    private val context: Context
+    private val context: Context,
+    private val appWidgetId: Int
 ) : RemoteViewsService.RemoteViewsFactory {
+
+    companion object {
+        private const val TAG = "WidgetListService"
+        private const val MAX_WIDGET_MEMOS = 5
+    }
 
     private var memos: List<MemoEntity> = emptyList()
     private var categoryColors: Map<String, String> = emptyMap()
@@ -32,19 +42,20 @@ class WidgetMemoListFactory(
         try {
             runBlocking(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(context)
-                // Pinned first, then by most recent — max 5 items
-                memos = db.memoDao().getWidgetMemos(5)
+                memos = db.memoDao().getWidgetMemos(MAX_WIDGET_MEMOS)
                 val categories = db.categoryDao().getAllCategoriesSync()
                 categoryColors = categories.associate { it.id to it.colorHex }
                 val totalCount = db.memoDao().getMemoCountSync()
 
-                // Cache count for the header (read synchronously by the widget provider)
                 VocalizeWidget.prefs(context)
                     .edit()
                     .putInt("widget_memo_count", totalCount)
                     .apply()
             }
+
+            Log.d(TAG, "loadData widgetId=$appWidgetId count=${memos.size}")
         } catch (e: Exception) {
+            Log.e(TAG, "Unable to load widget memos for widgetId=$appWidgetId", e)
             VocalizeWidget.showCrashNotification(context, "Widget list failed to load", e)
             memos = emptyList()
         }
@@ -56,25 +67,25 @@ class WidgetMemoListFactory(
 
     override fun getViewAt(position: Int): RemoteViews {
         val memo = memos.getOrNull(position)
-            ?: return RemoteViews(context.packageName, R.layout.widget_memo_item)
+        if (memo == null) {
+            return RemoteViews(context.packageName, R.layout.widget_memo_item).apply {
+                setTextViewText(R.id.widget_item_title, "Loading…")
+                setTextViewText(R.id.widget_item_subtitle, "")
+            }
+        }
 
         return RemoteViews(context.packageName, R.layout.widget_memo_item).apply {
-
-            // Title: prepend pin emoji for pinned memos
             val displayTitle = if (memo.isPinned) {
                 "📌 ${memo.title.ifBlank { "Voice Memo" }}"
             } else {
                 memo.title.ifBlank { "Voice Memo" }
             }
             setTextViewText(R.id.widget_item_title, displayTitle)
-
-            // Subtitle: duration · relative time
             setTextViewText(
                 R.id.widget_item_subtitle,
                 "${Utils.formatDuration(memo.duration)} · ${Utils.formatTimestamp(memo.dateCreated)}"
             )
 
-            // Category colour strip
             val colorHex = memo.categoryId?.let { categoryColors[it] }
             val stripColor = if (colorHex != null) {
                 try { Color.parseColor(colorHex) } catch (_: Exception) { Color.parseColor("#EF4444") }
@@ -83,7 +94,6 @@ class WidgetMemoListFactory(
             }
             setInt(R.id.widget_item_color_strip, "setBackgroundColor", stripColor)
 
-            // Fill-in intent carries memoId and title for playback
             val fillIn = Intent().apply {
                 putExtra(Constants.EXTRA_MEMO_ID, memo.id)
                 putExtra(Constants.EXTRA_MEMO_TITLE, memo.title.ifBlank { "Voice Memo" })
