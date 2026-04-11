@@ -197,7 +197,7 @@ class MemoDetailViewModel @Inject constructor(
 
     fun deleteReminder(reminderId: String) {
         viewModelScope.launch {
-            alarmScheduler.cancelReminder(reminderId)
+            alarmScheduler.cancelReminderById(reminderId)
             memoRepository.deleteReminderById(reminderId)
             refreshMemoReminderFields()
             memoRepository.getMemoById(memoId)?.let {
@@ -266,7 +266,7 @@ class MemoDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val memo = _uiState.value.memo ?: return@launch
             stopPlayback()
-            alarmScheduler.cancelReminder(memoId)
+            alarmScheduler.cancelRemindersForMemo(memoId)
             memoRepository.deleteMemo(memo)
             onDeleted()
         }
