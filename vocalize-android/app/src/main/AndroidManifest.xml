@@ -10,7 +10,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_ALARM" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -104,13 +103,11 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
-        <!-- Reminder tone playback service — uses "alarm" type for API 34+ so Android
-             grants it Doze-mode exemptions when started from an AlarmManager broadcast.
-             "mediaPlayback" without a MediaSession is killed in background on API 34. -->
+        <!-- Reminder tone playback service -->
         <service
             android:name=".service.ReminderToneService"
             android:exported="false"
-            android:foregroundServiceType="alarm" />
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Vosk transcription service -->
         <service

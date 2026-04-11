@@ -85,13 +85,15 @@ class ReminderToneService : Service() {
     }
 
     /**
-     * On Android 14+, the service is declared with foregroundServiceType="alarm" in the manifest.
-     * We must pass FOREGROUND_SERVICE_TYPE_ALARM so Android grants alarm Doze-mode exemptions.
-     * On older versions the overload without type is used (alarm type doesn't exist pre-14).
+     * On Android 10+ (API 29), startForeground() must receive the matching
+     * foregroundServiceType declared in the manifest ("mediaPlayback" = 2).
+     * On Android 14 (API 34) this becomes a hard requirement — omitting the type
+     * causes an InvalidForegroundServiceTypeException that silently kills the service,
+     * which is why reminders never show when the app is closed.
      */
     private fun startForegroundCompat(id: Int, notification: android.app.Notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(id, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_ALARM)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(id, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         } else {
             startForeground(id, notification)
         }
