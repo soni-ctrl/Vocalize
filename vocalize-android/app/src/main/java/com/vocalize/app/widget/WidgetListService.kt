@@ -10,6 +10,7 @@ import com.vocalize.app.data.local.AppDatabase
 import com.vocalize.app.data.local.entity.MemoEntity
 import com.vocalize.app.util.Constants
 import com.vocalize.app.util.Utils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
 class WidgetListService : RemoteViewsService() {
@@ -29,7 +30,7 @@ class WidgetMemoListFactory(
 
     private fun loadData() {
         try {
-            runBlocking {
+            runBlocking(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(context)
                 // Pinned first, then by most recent — max 5 items
                 memos = db.memoDao().getWidgetMemos(5)
