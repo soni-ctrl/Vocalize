@@ -12,7 +12,6 @@ import com.vocalize.app.util.Constants
 import com.vocalize.app.util.Utils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 
 class WidgetListService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory =
@@ -31,21 +30,19 @@ class WidgetMemoListFactory(
 
     private fun loadData() {
         try {
-            runBlocking {
-                withContext(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(context)
-                    // Pinned first, then by most recent — max 5 items
-                    memos = db.memoDao().getWidgetMemos(5)
-                    val categories = db.categoryDao().getAllCategoriesSync()
-                    categoryColors = categories.associate { it.id to it.colorHex }
-                    val totalCount = db.memoDao().getMemoCountSync()
+            runBlocking(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(context)
+                // Pinned first, then by most recent — max 5 items
+                memos = db.memoDao().getWidgetMemos(5)
+                val categories = db.categoryDao().getAllCategoriesSync()
+                categoryColors = categories.associate { it.id to it.colorHex }
+                val totalCount = db.memoDao().getMemoCountSync()
 
-                    // Cache count for the header (read synchronously by the widget provider)
-                    VocalizeWidget.prefs(context)
-                        .edit()
-                        .putInt("widget_memo_count", totalCount)
-                        .apply()
-                }
+                // Cache count for the header (read synchronously by the widget provider)
+                VocalizeWidget.prefs(context)
+                    .edit()
+                    .putInt("widget_memo_count", totalCount)
+                    .apply()
             }
         } catch (e: Exception) {
             VocalizeWidget.showCrashNotification(context, "Widget list failed to load", e)
