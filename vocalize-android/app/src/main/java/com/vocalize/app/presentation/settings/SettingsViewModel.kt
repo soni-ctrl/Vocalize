@@ -599,7 +599,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val all = memoRepository.getAllMemos().first()
             all.forEach { memo ->
-                if (memo.hasReminder) alarmScheduler.cancelReminder(memo.id)
+                if (memo.hasReminder) alarmScheduler.cancelRemindersForMemo(memo.id)
                 audioFileManager.deleteAudioFile(memo.filePath)
             }
             memoRepository.deleteAllMemos()

@@ -130,7 +130,7 @@ class PlaylistViewModel @Inject constructor(
 
     fun deleteMemo(memo: MemoEntity) {
         viewModelScope.launch {
-            if (memo.hasReminder) alarmScheduler.cancelReminder(memo.id)
+            if (memo.hasReminder) alarmScheduler.cancelRemindersForMemo(memo.id)
             audioFileManager.deleteAudioFile(memo.filePath)
             memoRepository.deleteMemo(memo)
         }

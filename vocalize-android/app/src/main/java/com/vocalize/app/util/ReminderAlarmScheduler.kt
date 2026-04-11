@@ -23,16 +23,13 @@ class ReminderAlarmScheduler @Inject constructor(
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
     suspend fun scheduleReminder(memo: MemoEntity) {
-        val nextReminder = memoRepository.getRemindersForMemo(memo.id)
+        memoRepository.getRemindersForMemo(memo.id)
             .first()
             .filter { it.reminderTime > System.currentTimeMillis() }
-            .minByOrNull { it.reminderTime }
-            ?: return
-
-        scheduleReminder(nextReminder, memo.title)
+            .forEach { scheduleReminder(it, memo.title) }
     }
 
-    suspend fun scheduleReminder(reminder: ReminderEntity, memoTitle: String) {
+    fun scheduleReminder(reminder: ReminderEntity, memoTitle: String) {
         if (reminder.reminderTime <= System.currentTimeMillis()) return
 
         val intent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
@@ -44,7 +41,7 @@ class ReminderAlarmScheduler @Inject constructor(
 
         val pending = PendingIntent.getBroadcast(
             context,
-            reminder.memoId.hashCode(),
+            reminder.id.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -60,25 +57,29 @@ class ReminderAlarmScheduler @Inject constructor(
         }
     }
 
-    fun cancelReminder(memoId: String) {
+    fun cancelReminderById(reminderId: String) {
         val intent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
             action = Constants.ACTION_PLAY
-            putExtra(Constants.EXTRA_MEMO_ID, memoId)
+            putExtra(Constants.EXTRA_REMINDER_ID, reminderId)
         }
         val pending = PendingIntent.getBroadcast(
             context,
-            memoId.hashCode(),
+            reminderId.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         alarmManager.cancel(pending)
     }
 
-    suspend fun scheduleNextRepeat(memo: MemoEntity) {
-        val reminderTime = memo.reminderTime ?: return
+    suspend fun cancelRemindersForMemo(memoId: String) {
+        memoRepository.getRemindersForMemo(memoId).first().forEach { cancelReminderById(it.id) }
+    }
+
+    suspend fun scheduleNextRepeat(reminder: ReminderEntity, memoTitle: String) {
+        val reminderTime = reminder.reminderTime
         val now = System.currentTimeMillis()
 
-        val nextTime: Long? = when (memo.repeatType) {
+        val nextTime: Long? = when (reminder.repeatType) {
             RepeatType.DAILY -> {
                 val cal = Calendar.getInstance().apply {
                     timeInMillis = reminderTime
@@ -94,7 +95,7 @@ class ReminderAlarmScheduler @Inject constructor(
                 cal.timeInMillis
             }
             RepeatType.CUSTOM_DAYS -> {
-                val days = memo.customDays.split(",").mapNotNull { it.trim().toIntOrNull() }
+                val days = reminder.customDays.split(",").mapNotNull { it.trim().toIntOrNull() }
                 if (days.isEmpty()) null else {
                     val cal = Calendar.getInstance()
                     val currentDay = cal.get(Calendar.DAY_OF_WEEK)
@@ -110,8 +111,11 @@ class ReminderAlarmScheduler @Inject constructor(
             RepeatType.NONE -> null
         }
 
-        nextTime?.let {
-            scheduleReminder(memo.copy(reminderTime = it))
+        if (nextTime != null) {
+            memoRepository.updateReminderEntry(reminder.id, nextTime, reminder.repeatType, reminder.customDays)
+            scheduleReminder(reminder.copy(reminderTime = nextTime), memoTitle)
+        } else {
+            memoRepository.deleteReminderById(reminder.id)
         }
     }
 }

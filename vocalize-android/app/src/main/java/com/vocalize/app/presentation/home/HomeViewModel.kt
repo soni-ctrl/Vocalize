@@ -108,7 +108,7 @@ class HomeViewModel @Inject constructor(
 
     fun deleteMemo(memo: MemoEntity) {
         viewModelScope.launch {
-            if (memo.hasReminder) alarmScheduler.cancelReminder(memo.id)
+            if (memo.hasReminder) alarmScheduler.cancelRemindersForMemo(memo.id)
             audioFileManager.deleteAudioFile(memo.filePath)
             memoRepository.deleteMemo(memo)
             showSnackbar("Memo deleted")
@@ -153,7 +153,7 @@ class HomeViewModel @Inject constructor(
             val ids = _uiState.value.selectedMemoIds.toList()
             val memos = ids.mapNotNull { memoRepository.getMemoById(it) }
             memos.forEach { memo ->
-                if (memo.hasReminder) alarmScheduler.cancelReminder(memo.id)
+                if (memo.hasReminder) alarmScheduler.cancelRemindersForMemo(memo.id)
                 audioFileManager.deleteAudioFile(memo.filePath)
                 memoRepository.deleteMemo(memo)
             }
@@ -166,7 +166,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val all = memoRepository.getAllMemos().first()
             all.forEach { memo ->
-                if (memo.hasReminder) alarmScheduler.cancelReminder(memo.id)
+                if (memo.hasReminder) alarmScheduler.cancelRemindersForMemo(memo.id)
                 audioFileManager.deleteAudioFile(memo.filePath)
             }
             memoRepository.deleteAllMemos()

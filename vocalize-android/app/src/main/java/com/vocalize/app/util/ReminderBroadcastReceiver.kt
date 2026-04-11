@@ -45,7 +45,13 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
                 } else {
                     context.startService(serviceIntent)
                 }
-                pendingResult.finish()
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        handleTriggeredReminder(memoId, memoTitle, reminderId)
+                    } finally {
+                        pendingResult.finish()
+                    }
+                }
                 return
             }
             Constants.ACTION_SHOW_NOTE -> {
@@ -83,15 +89,9 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
                 return
             }
             Constants.ACTION_DISMISS -> {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        handleDismissAction(memoId, memoTitle, reminderId)
-                    } finally {
-                        pendingResult.finish()
-                    }
-                }
                 notificationHelper.cancelNotification(memoId)
                 context.stopService(Intent(context, ReminderToneService::class.java))
+                pendingResult.finish()
                 return
             }
         }
@@ -99,84 +99,56 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         pendingResult.finish()
     }
 
+    private suspend fun handleTriggeredReminder(memoId: String, memoTitle: String, reminderId: String?) {
+        if (reminderId == null) {
+            refreshMemoReminderFields(memoId)
+            return
+        }
+
+        val reminder = memoRepository.getReminderById(reminderId)
+        if (reminder != null) {
+            if (reminder.repeatType != RepeatType.NONE) {
+                alarmScheduler.scheduleNextRepeat(reminder, memoTitle)
+            } else {
+                memoRepository.deleteReminderById(reminder.id)
+            }
+        }
+
+        refreshMemoReminderFields(memoId)
+    }
+
+    private suspend fun refreshMemoReminderFields(memoId: String) {
+        val reminders = memoRepository.getRemindersForMemo(memoId)
+            .first()
+            .filter { it.reminderTime > System.currentTimeMillis() }
+
+        if (reminders.isEmpty()) {
+            memoRepository.updateReminder(memoId, false, null, RepeatType.NONE, "")
+        } else {
+            val nextReminder = reminders.minByOrNull { it.reminderTime }!!
+            memoRepository.updateReminder(
+                memoId,
+                true,
+                nextReminder.reminderTime,
+                nextReminder.repeatType,
+                nextReminder.customDays
+            )
+        }
+    }
+
     private suspend fun handleSnoozeAction(context: Context, memoId: String, memoTitle: String, reminderId: String?) {
         val snoozeMinutes = context.dataStore.data.first()[stringPreferencesKey(Constants.PREFS_DEFAULT_SNOOZE)]?.toIntOrNull() ?: 10
         val snoozeTime = System.currentTimeMillis() + snoozeMinutes * 60 * 1000L
+        val tempReminder = ReminderEntity(
+            id = java.util.UUID.randomUUID().toString(),
+            memoId = memoId,
+            reminderTime = snoozeTime,
+            repeatType = RepeatType.NONE,
+            customDays = ""
+        )
 
-        val reminder = reminderId?.let { memoRepository.getReminderById(it) }
-
-        if (reminder != null) {
-            memoRepository.updateReminderEntry(reminder.id, snoozeTime, reminder.repeatType, reminder.customDays)
-            memoRepository.updateReminder(memoId, true, snoozeTime, reminder.repeatType, reminder.customDays)
-            alarmScheduler.scheduleReminder(reminder.copy(reminderTime = snoozeTime), memoTitle)
-        } else {
-            val memo = memoRepository.getMemoById(memoId) ?: return
-            memoRepository.updateReminder(memoId, true, snoozeTime, memo.repeatType, memo.customDays)
-            alarmScheduler.scheduleReminder(memo.copy(reminderTime = snoozeTime))
-        }
-    }
-
-    private suspend fun handleDismissAction(memoId: String, memoTitle: String, reminderId: String?) {
-        if (reminderId != null) {
-            val reminder = memoRepository.getReminderById(reminderId)
-            if (reminder != null) {
-                if (reminder.repeatType == RepeatType.NONE) {
-                    memoRepository.deleteReminderById(reminderId)
-                } else {
-                    val nextTime = calculateNextRepeatTime(reminder)
-                    if (nextTime != null) {
-                        memoRepository.updateReminderEntry(reminderId, nextTime, reminder.repeatType, reminder.customDays)
-                    } else {
-                        memoRepository.deleteReminderById(reminderId)
-                    }
-                }
-            }
-        }
-
-        val nextReminder = memoRepository.getRemindersForMemo(memoId)
-            .first()
-            .filter { it.reminderTime > System.currentTimeMillis() }
-            .minByOrNull { it.reminderTime }
-
-        if (nextReminder != null) {
-            memoRepository.updateReminder(memoId, true, nextReminder.reminderTime, nextReminder.repeatType, nextReminder.customDays)
-            alarmScheduler.scheduleReminder(nextReminder, memoTitle)
-        } else {
-            memoRepository.updateReminder(memoId, false, null, RepeatType.NONE, "")
-        }
-    }
-
-    private fun calculateNextRepeatTime(reminder: ReminderEntity): Long? {
-        val now = System.currentTimeMillis()
-        return when (reminder.repeatType) {
-            RepeatType.DAILY -> {
-                val cal = Calendar.getInstance().apply {
-                    timeInMillis = reminder.reminderTime
-                    while (timeInMillis <= now) add(Calendar.DAY_OF_YEAR, 1)
-                }
-                cal.timeInMillis
-            }
-            RepeatType.WEEKLY -> {
-                val cal = Calendar.getInstance().apply {
-                    timeInMillis = reminder.reminderTime
-                    while (timeInMillis <= now) add(Calendar.WEEK_OF_YEAR, 1)
-                }
-                cal.timeInMillis
-            }
-            RepeatType.CUSTOM_DAYS -> {
-                val days = reminder.customDays.split(",").mapNotNull { it.trim().toIntOrNull() }
-                if (days.isEmpty()) null else {
-                    val cal = Calendar.getInstance()
-                    val currentDay = cal.get(Calendar.DAY_OF_WEEK)
-                    val nextDay = days.firstOrNull { it > currentDay } ?: days.first()
-                    val daysUntil = if (nextDay > currentDay) nextDay - currentDay else 7 - currentDay + nextDay
-                    cal.apply {
-                        timeInMillis = reminder.reminderTime
-                        add(Calendar.DAY_OF_YEAR, daysUntil)
-                    }.timeInMillis
-                }
-            }
-            RepeatType.NONE -> null
-        }
+        memoRepository.insertReminder(tempReminder)
+        alarmScheduler.scheduleReminder(tempReminder, memoTitle)
+        refreshMemoReminderFields(memoId)
     }
 }
