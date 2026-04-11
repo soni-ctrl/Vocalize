@@ -9,6 +9,7 @@ object Constants {
 
     // Notification actions
     const val ACTION_PLAY = "com.vocalize.app.ACTION_PLAY"
+    const val ACTION_REMINDER_PLAY = "com.vocalize.app.ACTION_REMINDER_PLAY"
     const val ACTION_PLAY_AUDIO = "com.vocalize.app.ACTION_PLAY_AUDIO"
     const val ACTION_REPLAY_AUDIO = "com.vocalize.app.ACTION_REPLAY_AUDIO"
     const val ACTION_SHOW_NOTE = "com.vocalize.app.ACTION_SHOW_NOTE"

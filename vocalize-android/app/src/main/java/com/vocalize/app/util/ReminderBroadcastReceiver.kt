@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.vocalize.app.data.repository.MemoRepository
+import com.vocalize.app.service.PlaybackService
 import com.vocalize.app.service.ReminderToneService
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -47,10 +48,25 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
                 }
             }
             Constants.ACTION_SHOW_NOTE -> {
+                // Support legacy note action if used elsewhere.
                 notificationHelper.showReminderNoteNotification(memoId, memoTitle)
+                context.stopService(Intent(context, ReminderToneService::class.java))
             }
             Constants.ACTION_BACK_TO_REMINDER -> {
                 notificationHelper.showReminderNotification(memoId, memoTitle)
+            }
+            Constants.ACTION_REMINDER_PLAY -> {
+                context.stopService(Intent(context, ReminderToneService::class.java))
+                val playbackIntent = Intent(context, PlaybackService::class.java).apply {
+                    action = Constants.ACTION_PLAY_AUDIO
+                    putExtra(Constants.EXTRA_MEMO_ID, memoId)
+                    putExtra(Constants.EXTRA_MEMO_TITLE, memoTitle)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(playbackIntent)
+                } else {
+                    context.startService(playbackIntent)
+                }
             }
             Constants.ACTION_SNOOZE -> {
                 CoroutineScope(Dispatchers.IO).launch {
