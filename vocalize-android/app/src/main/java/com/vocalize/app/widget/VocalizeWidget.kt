@@ -14,6 +14,7 @@ import android.util.Log
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import com.vocalize.app.R
+import com.vocalize.app.data.local.AppDatabase
 import com.vocalize.app.service.PlaybackService
 import com.vocalize.app.util.Constants
 
@@ -98,12 +99,14 @@ class VocalizeWidget : AppWidgetProvider() {
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
-            appWidgetId: Int
+            appWidgetId: Int,
+            retryOnEmpty: Boolean = true
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_vocalize)
 
             // ── Header: memo count from cached widget store ──
-            val count = WidgetMemoStore.getCachedMemoCount(context)
+            val cachedMemos = WidgetMemoStore.loadCachedMemos(context)
+            val count = cachedMemos.size
             val countLabel = if (count == 1) "1 memo" else "$count memos"
             views.setTextViewText(R.id.widget_memo_count, countLabel)
 
@@ -127,20 +130,47 @@ class VocalizeWidget : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_refresh_button, refreshPending)
 
-            // ── Latest memo title display ──
-            val latestMemo = WidgetMemoStore.getLatestMemo(context)
-            if (latestMemo != null) {
-                views.setTextViewText(R.id.widget_latest_memo_title, latestMemo.title.ifBlank { "Voice Memo" })
-                views.setTextViewText(R.id.widget_latest_memo_subtitle, "Latest memo")
-            } else {
+            // ── If the widget has no cached memo yet, try a DB refresh before finalizing ──
+            val latestMemo = cachedMemos.firstOrNull()
+            if (latestMemo == null) {
+                if (retryOnEmpty) {
+                    Log.d(TAG, "updateAppWidget no cached memo found, refreshing cache from database")
+                    refreshCacheAndRetry(context, appWidgetManager, appWidgetId)
+                    views.setTextViewText(R.id.widget_latest_memo_title, "Loading…")
+                    views.setTextViewText(R.id.widget_latest_memo_subtitle, "Checking memos…")
+                    appWidgetManager.updateAppWidget(appWidgetId, views)
+                    return
+                }
+
                 views.setTextViewText(R.id.widget_latest_memo_title, "No voice memos yet")
                 views.setTextViewText(R.id.widget_latest_memo_subtitle, "Tap record to add one")
+                Log.d(TAG, "updateAppWidget widgetId=$appWidgetId count=$count no cached memos")
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+                return
             }
 
-            val latestMemoId = latestMemo?.id ?: "none"
-            val latestMemoTitle = latestMemo?.title ?: "none"
+            views.setTextViewText(R.id.widget_latest_memo_title, latestMemo.title.ifBlank { "Voice Memo" })
+            views.setTextViewText(R.id.widget_latest_memo_subtitle, "Latest memo")
+
+            val latestMemoId = latestMemo.id
+            val latestMemoTitle = latestMemo.title
             Log.d(TAG, "updateAppWidget widgetId=$appWidgetId count=$count latestMemo=$latestMemoId title='$latestMemoTitle'")
             appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+
+        private fun refreshCacheAndRetry(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            appWidgetId: Int
+        ) {
+            Thread {
+                try {
+                    WidgetMemoStore.updateFromDatabase(context, AppDatabase.getDatabase(context).memoDao())
+                } catch (e: Exception) {
+                    Log.e(TAG, "refreshCacheAndRetry failed", e)
+                }
+                updateAppWidget(context, appWidgetManager, appWidgetId, retryOnEmpty = false)
+            }.start()
         }
 
         fun requestWidgetRefresh(context: Context) {
