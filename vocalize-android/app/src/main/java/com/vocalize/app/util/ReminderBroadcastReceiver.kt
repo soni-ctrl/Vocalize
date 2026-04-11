@@ -50,16 +50,7 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
                 notificationHelper.showReminderNoteNotification(memoId, memoTitle)
             }
             Constants.ACTION_BACK_TO_REMINDER -> {
-                val serviceIntent = Intent(context, ReminderToneService::class.java).apply {
-                    action = ReminderToneService.ACTION_START_REMINDER
-                    putExtra(Constants.EXTRA_MEMO_ID, memoId)
-                    putExtra(Constants.EXTRA_MEMO_TITLE, memoTitle)
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
+                notificationHelper.showReminderNotification(memoId, memoTitle)
             }
             Constants.ACTION_SNOOZE -> {
                 CoroutineScope(Dispatchers.IO).launch {

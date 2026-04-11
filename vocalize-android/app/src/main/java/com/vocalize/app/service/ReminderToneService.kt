@@ -45,8 +45,9 @@ class ReminderToneService : Service() {
         val memoId = intent.getStringExtra(Constants.EXTRA_MEMO_ID) ?: "test_reminder"
         val memoTitle = intent.getStringExtra(Constants.EXTRA_MEMO_TITLE) ?: "Reminder tone test"
         val notification = notificationHelper.buildReminderNotification(memoId, memoTitle)
+        val notificationId = memoId.hashCode()
 
-        startForeground(REMINDER_NOTIFICATION_ID, notification)
+        startForeground(notificationId, notification)
 
         serviceScope.launch {
             playReminderTone()
@@ -74,10 +75,7 @@ class ReminderToneService : Service() {
                 )
                 setDataSource(applicationContext, uri)
                 setVolume(volume, volume)
-                isLooping = false
-                setOnCompletionListener {
-                    // Keep the reminder notification alive until user dismisses or snoozes.
-                }
+                isLooping = true
                 setOnErrorListener { _, _, _ ->
                     stopSelf()
                     true
