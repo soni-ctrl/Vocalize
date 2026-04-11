@@ -173,12 +173,26 @@ class VocalizeWidget : AppWidgetProvider() {
             }.start()
         }
 
+        private fun refreshAllWidgets(context: Context) {
+            try {
+                val manager = AppWidgetManager.getInstance(context)
+                val widgetIds = manager.getAppWidgetIds(ComponentName(context, VocalizeWidget::class.java))
+                if (widgetIds.isEmpty()) {
+                    Log.d(TAG, "refreshAllWidgets no widgets currently active")
+                    return
+                }
+                Log.d(TAG, "refreshAllWidgets widgetIds=${widgetIds.joinToString()}")
+                widgetIds.forEach { id ->
+                    updateAppWidget(context, manager, id)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "refreshAllWidgets failed", e)
+            }
+        }
+
         fun requestWidgetRefresh(context: Context) {
             Log.d(TAG, "requestWidgetRefresh")
-            val intent = Intent(context, VocalizeWidget::class.java).apply {
-                action = ACTION_REFRESH
-            }
-            context.sendBroadcast(intent)
+            refreshAllWidgets(context)
         }
 
         fun showCrashNotification(context: Context, title: String, error: Throwable) {
