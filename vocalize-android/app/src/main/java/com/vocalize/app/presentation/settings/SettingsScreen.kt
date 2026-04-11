@@ -43,6 +43,7 @@ fun SettingsScreen(
     var showDeleteAllDialog by remember { mutableStateOf(false) }
     var showDigestHourDialog by remember { mutableStateOf(false) }
     var showToneListDialog by remember { mutableStateOf(false) }
+    var showToneStatusDialog by remember { mutableStateOf(false) }
     var showExportConfirmDialog by remember { mutableStateOf(false) }
     var exportFolderUri by remember { mutableStateOf<Uri?>(null) }
     var allPermissionsGranted by remember { mutableStateOf(PermissionsHelper.areAllRequiredPermissionsGranted(context)) }
