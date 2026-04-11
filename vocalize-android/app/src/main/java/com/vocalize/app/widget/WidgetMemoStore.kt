@@ -43,6 +43,9 @@ object WidgetMemoStore {
 
     fun getCachedMemoCount(context: Context): Int = prefs(context).getInt(KEY_COUNT, 0)
 
+    fun getLatestMemo(context: Context): MemoSummary? =
+        loadCachedMemos(context).firstOrNull()
+
     fun saveMemos(context: Context, memos: List<MemoSummary>) {
         val array = JSONArray()
         memos.forEach { memo ->

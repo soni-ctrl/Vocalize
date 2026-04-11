@@ -123,24 +123,15 @@ class VocalizeWidget : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_refresh_button, refreshPending)
 
-            // ── RemoteViews list adapter ──
-            val serviceIntent = Intent(context, WidgetListService::class.java).apply {
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+            // ── Latest memo title display ──
+            val latestMemo = WidgetMemoStore.getLatestMemo(context)
+            if (latestMemo != null) {
+                views.setTextViewText(R.id.widget_latest_memo_title, latestMemo.title.ifBlank { "Voice Memo" })
+                views.setTextViewText(R.id.widget_latest_memo_subtitle, "Latest memo")
+            } else {
+                views.setTextViewText(R.id.widget_latest_memo_title, "No voice memos yet")
+                views.setTextViewText(R.id.widget_latest_memo_subtitle, "Tap record to add one")
             }
-            views.setRemoteAdapter(R.id.widget_memo_list, serviceIntent)
-            views.setEmptyView(R.id.widget_memo_list, R.id.widget_empty_text)
-
-            // ── Item click template: plays the memo directly ──
-            val itemClickIntent = Intent(context, VocalizeWidget::class.java).apply {
-                action = ACTION_PLAY_MEMO
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            }
-            val itemClickPending = PendingIntent.getBroadcast(
-                context, appWidgetId, itemClickIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
-            views.setPendingIntentTemplate(R.id.widget_memo_list, itemClickPending)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_memo_list)

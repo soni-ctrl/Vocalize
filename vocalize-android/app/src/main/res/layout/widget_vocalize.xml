@@ -91,47 +91,43 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="18dp"
-        android:text="PINNED FIRST · LAST 5"
+        android:text="LAST VOICE MEMO"
         android:textSize="8sp"
         android:textColor="#50FFFFFF"
         android:gravity="center_vertical"
         android:letterSpacing="0.15" />
 
-    <!-- ─── Memo List ─────────────────────────────────── -->
-    <ListView
-        android:id="@+id/widget_memo_list"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:divider="#0FFFFFFF"
-        android:dividerHeight="1dp"
-        android:scrollbars="none" />
-
-    <!-- ─── Empty State ─────────────────────────────────── -->
+    <!-- ─── Latest memo preview ───────────────────────────── -->
     <LinearLayout
-        android:id="@+id/widget_empty_text"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:orientation="vertical"
-        android:gravity="center"
-        android:visibility="gone">
+        android:gravity="center_vertical"
+        android:padding="10dp"
+        android:background="#10FFFFFF">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/widget_latest_memo_title"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="No voice memos yet"
-            android:textSize="12sp"
-            android:textColor="#70FFFFFF"
-            android:textStyle="bold" />
+            android:text="Loading…"
+            android:textSize="13sp"
+            android:textColor="#FFFFFFFF"
+            android:textStyle="bold"
+            android:maxLines="2"
+            android:ellipsize="end" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/widget_latest_memo_subtitle"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Tap above to record your first"
+            android:text=""
             android:textSize="10sp"
-            android:textColor="#50FFFFFF"
-            android:layout_marginTop="2dp" />
+            android:textColor="#80FFFFFF"
+            android:layout_marginTop="4dp"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
     </LinearLayout>
 
