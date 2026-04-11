@@ -9,9 +9,7 @@ import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.vocalize.app.R
 import com.vocalize.app.data.local.AppDatabase
-import com.vocalize.app.data.local.entity.MemoEntity
 import com.vocalize.app.util.Constants
-import com.vocalize.app.util.Utils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
@@ -32,23 +30,21 @@ class WidgetMemoListFactory(
         private const val MAX_WIDGET_MEMOS = 1
     }
 
-    private var memos: List<MemoEntity> = emptyList()
-    private var categoryColors: Map<String, String> = emptyMap()
+    private var memos: List<WidgetMemoStore.MemoSummary> = emptyList()
 
     override fun onCreate() { loadData() }
     override fun onDataSetChanged() { loadData() }
 
     private fun loadData() {
         try {
-            runBlocking(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(context)
-                memos = db.memoDao().getWidgetMemos(MAX_WIDGET_MEMOS)
-                val totalCount = db.memoDao().getMemoCountSync()
-
-                VocalizeWidget.prefs(context)
-                    .edit()
-                    .putInt("widget_memo_count", totalCount)
-                    .apply()
+            memos = WidgetMemoStore.loadCachedMemos(context)
+            if (memos.isEmpty()) {
+                runBlocking(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(context)
+                    WidgetMemoStore.updateFromDatabase(context, db.memoDao())
+                }
+                memos = WidgetMemoStore.loadCachedMemos(context)
+                VocalizeWidget.requestWidgetRefresh(context)
             }
 
             Log.d(TAG, "loadData widgetId=$appWidgetId count=${memos.size}")

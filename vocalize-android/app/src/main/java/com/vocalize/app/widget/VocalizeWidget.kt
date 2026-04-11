@@ -8,7 +8,6 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.widget.RemoteViews
@@ -89,12 +88,8 @@ class VocalizeWidget : AppWidgetProvider() {
         const val ACTION_OPEN_RECORDER = "com.vocalize.app.widget.ACTION_OPEN_RECORDER"
 
         private const val PREFS_NAME = "vocalize_widget_prefs"
-        private const val PREF_MEMO_COUNT = "widget_memo_count"
         private const val CRASH_CHANNEL_ID = "vocalize_widget_crash"
         private const val CRASH_NOTIF_ID = 9900
-
-        fun prefs(context: Context): SharedPreferences =
-            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         fun updateAppWidget(
             context: Context,
@@ -103,8 +98,8 @@ class VocalizeWidget : AppWidgetProvider() {
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_vocalize)
 
-            // ── Header: memo count from cached prefs ──
-            val count = prefs(context).getInt(PREF_MEMO_COUNT, 0)
+            // ── Header: memo count from cached widget store ──
+            val count = WidgetMemoStore.getCachedMemoCount(context)
             val countLabel = if (count == 1) "1 memo" else "$count memos"
             views.setTextViewText(R.id.widget_memo_count, countLabel)
 

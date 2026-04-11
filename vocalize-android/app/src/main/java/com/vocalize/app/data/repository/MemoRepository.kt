@@ -1,5 +1,6 @@
 package com.vocalize.app.data.repository
 
+import android.content.Context
 import com.vocalize.app.data.local.dao.CategoryDao
 import com.vocalize.app.data.local.dao.MemoDao
 import com.vocalize.app.data.local.dao.PlaylistDao
@@ -16,13 +17,19 @@ import com.vocalize.app.data.local.entity.ReminderLogEntity
 import com.vocalize.app.data.local.entity.TagEntity
 import com.vocalize.app.data.local.entity.MemoTagCrossRef
 import com.vocalize.app.data.local.entity.RepeatType
+import com.vocalize.app.widget.VocalizeWidget
+import com.vocalize.app.widget.WidgetMemoStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class MemoRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val memoDao: MemoDao,
     private val categoryDao: CategoryDao,
     private val playlistDao: PlaylistDao,
@@ -51,12 +58,32 @@ class MemoRepository @Inject constructor(
     fun getMemosByPlaylist(playlistId: String): Flow<List<MemoEntity>> = memoDao.getMemosByPlaylist(playlistId)
     fun getMemosByTag(tagId: String): Flow<List<MemoEntity>> = memoDao.getMemosByTag(tagId)
 
-    suspend fun insertMemo(memo: MemoEntity) = memoDao.insertMemo(memo)
-    suspend fun updateMemo(memo: MemoEntity) = memoDao.updateMemo(memo)
-    suspend fun deleteMemo(memo: MemoEntity) = memoDao.deleteMemo(memo)
-    suspend fun deleteMemoById(id: String) = memoDao.deleteMemoById(id)
+    suspend fun insertMemo(memo: MemoEntity) {
+        memoDao.insertMemo(memo)
+        refreshWidgetCache()
+    }
+
+    suspend fun updateMemo(memo: MemoEntity) {
+        memoDao.updateMemo(memo)
+        refreshWidgetCache()
+    }
+
+    suspend fun deleteMemo(memo: MemoEntity) {
+        memoDao.deleteMemo(memo)
+        refreshWidgetCache()
+    }
+
+    suspend fun deleteMemoById(id: String) {
+        memoDao.deleteMemoById(id)
+        refreshWidgetCache()
+    }
+
     suspend fun updateTranscription(id: String, transcription: String) = memoDao.updateTranscription(id, transcription)
-    suspend fun updateTitle(id: String, title: String, now: Long) = memoDao.updateTitle(id, title, now)
+
+    suspend fun updateTitle(id: String, title: String, now: Long) {
+        memoDao.updateTitle(id, title, now)
+        refreshWidgetCache()
+    }
     suspend fun updateReminder(
         id: String,
         hasReminder: Boolean,
@@ -93,7 +120,15 @@ class MemoRepository @Inject constructor(
     suspend fun getTotalDuration(): Long = memoDao.getTotalDuration() ?: 0L
     suspend fun updatePinned(id: String, pinned: Boolean) = memoDao.updatePinned(id, pinned)
     suspend fun updatePlaybackPosition(id: String, positionMs: Long) = memoDao.updatePlaybackPosition(id, positionMs)
-    suspend fun deleteAllMemos() = memoDao.deleteAllMemos()
+    suspend fun deleteAllMemos() {
+        memoDao.deleteAllMemos()
+        refreshWidgetCache()
+    }
+
+    private suspend fun refreshWidgetCache() = withContext(Dispatchers.IO) {
+        WidgetMemoStore.updateFromDatabase(context, memoDao)
+        VocalizeWidget.requestWidgetRefresh(context)
+    }
 
     // ─── Reminder Logs ───────────────────────────────────────────
     suspend fun insertReminderLog(log: ReminderLogEntity) = reminderLogDao.insertLog(log)
