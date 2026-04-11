@@ -35,6 +35,10 @@ class NotificationHelper @Inject constructor(
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun showReminderNotification(memoId: String, memoTitle: String) {
+        notificationManager.notify(memoId.hashCode(), buildReminderNotification(memoId, memoTitle))
+    }
+
+    fun buildReminderNotification(memoId: String, memoTitle: String): Notification {
         val notifId = memoId.hashCode()
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
@@ -93,7 +97,6 @@ class NotificationHelper @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Full-screen intent: shown as a heads-up / full-screen card on Android 10+ lock screen
         val fullScreenIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(Constants.EXTRA_MEMO_ID, memoId)
@@ -109,25 +112,24 @@ class NotificationHelper @Inject constructor(
             .setContentTitle("Time to listen: $memoTitle")
             .setContentText("Tap Play to listen without opening the app")
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setContentIntent(openPending)
             .addAction(R.drawable.ic_play, "Play", playPending)
             .addAction(R.drawable.ic_mic, "Note", notePending)
             .addAction(R.drawable.ic_alarm, "Snooze", snoozePending)
             .addAction(R.drawable.ic_delete, "Dismiss", dismissPending)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             builder.setSound(reminderSoundUri ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
         }
 
-        // Full-screen intent for Android 10+ lock screen player card
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             builder.setFullScreenIntent(fullScreenPending, true)
         }
 
-        notificationManager.notify(notifId, builder.build())
+        return builder.build()
     }
 
     fun updateReminderChannelSound(soundUri: Uri?) {
@@ -147,7 +149,7 @@ class NotificationHelper @Inject constructor(
                 setSound(
                     soundToUse,
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )

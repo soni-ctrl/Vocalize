@@ -316,46 +316,12 @@ fun SettingsScreen(
             SettingsSectionHeader("Tone status", Icons.Default.Info)
 
             SettingsCard {
-                SettingsInfoRow(
-                    icon = Icons.Default.MusicNote,
-                    iconTint = VocalizeGreen,
-                    title = "Selected tone",
-                    subtitle = uiState.reminderToneFileName
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsInfoRow(
-                    icon = Icons.Default.Folder,
+                SettingsActionRow(
+                    icon = Icons.Default.Info,
                     iconTint = VocalizeAccentBlue,
-                    title = "Tone folder",
-                    subtitle = uiState.reminderToneFolderUri?.let { "Custom folder selected" } ?: uiState.reminderToneFolderPath
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsInfoRow(
-                    icon = Icons.Default.VolumeUp,
-                    iconTint = VocalizeOrange,
-                    title = "Volume",
-                    subtitle = "${uiState.reminderToneVolume}%"
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsInfoRow(
-                    icon = Icons.Default.CheckCircle,
-                    iconTint = if (allPermissionsGranted) VocalizeGreen else MaterialTheme.colorScheme.error,
-                    title = "Core permissions",
-                    subtitle = if (allPermissionsGranted) "Audio and notification permissions granted" else "Missing microphone or notification permission"
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsInfoRow(
-                    icon = Icons.Default.Security,
-                    iconTint = if (exactAlarmPermissionGranted) VocalizeGreen else MaterialTheme.colorScheme.error,
-                    title = "Alarm permission",
-                    subtitle = if (exactAlarmPermissionGranted) "Exact alarm granted" else "Needs exact alarm permission"
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsInfoRow(
-                    icon = Icons.Default.Storage,
-                    iconTint = if (allFilesAccessGranted) VocalizeGreen else MaterialTheme.colorScheme.error,
-                    title = "Storage access",
-                    subtitle = if (allFilesAccessGranted) "All files access granted" else "Needs all files permission"
+                    title = "View reminder tone details",
+                    subtitle = "Tap to view tone folder, selected tone, permissions and volume",
+                    onClick = { showToneStatusDialog = true }
                 )
             }
 
@@ -599,6 +565,71 @@ fun SettingsScreen(
                     showToneListDialog = false
                     stopPreview()
                 }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showToneStatusDialog) {
+        val toneStatusIssue = when {
+            !allFilesAccessGranted && uiState.reminderToneFolderUri != null ->
+                "Custom tone folder selected but all-files access is not granted."
+            uiState.reminderToneFileUri.isNullOrBlank() ->
+                "No reminder tone is selected yet. The app will use the default notification sound."
+            uiState.availableReminderTones.isEmpty() ->
+                "The selected folder contains no audio files. Choose another folder."
+            !exactAlarmPermissionGranted ->
+                "Exact alarm permission is not granted; reminder delivery may be delayed."
+            else ->
+                "Tone configured correctly. If sound still does not play, verify battery optimization and notification settings."
+        }
+
+        AlertDialog(
+            onDismissRequest = { showToneStatusDialog = false },
+            title = { Text("Reminder tone status") },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Status details", style = MaterialTheme.typography.bodyLarge)
+                    Text(toneStatusIssue, style = MaterialTheme.typography.bodyMedium)
+                    SettingsInfoRow(
+                        icon = Icons.Default.MusicNote,
+                        iconTint = VocalizeGreen,
+                        title = "Selected tone",
+                        subtitle = uiState.reminderToneFileName.ifBlank { "Default tone" }
+                    )
+                    SettingsInfoRow(
+                        icon = Icons.Default.Folder,
+                        iconTint = VocalizeAccentBlue,
+                        title = "Tone folder",
+                        subtitle = uiState.reminderToneFolderUri?.let { "Custom folder selected" } ?: uiState.reminderToneFolderPath
+                    )
+                    SettingsInfoRow(
+                        icon = Icons.Default.VolumeUp,
+                        iconTint = VocalizeOrange,
+                        title = "Volume",
+                        subtitle = "${uiState.reminderToneVolume}%"
+                    )
+                    SettingsInfoRow(
+                        icon = Icons.Default.CheckCircle,
+                        iconTint = if (allPermissionsGranted) VocalizeGreen else MaterialTheme.colorScheme.error,
+                        title = "Core permissions",
+                        subtitle = if (allPermissionsGranted) "Audio + notification permissions granted" else "Missing microphone or notification permission"
+                    )
+                    SettingsInfoRow(
+                        icon = Icons.Default.Security,
+                        iconTint = if (exactAlarmPermissionGranted) VocalizeGreen else MaterialTheme.colorScheme.error,
+                        title = "Alarm permission",
+                        subtitle = if (exactAlarmPermissionGranted) "Exact alarm granted" else "Needs exact alarm permission"
+                    )
+                    SettingsInfoRow(
+                        icon = Icons.Default.Storage,
+                        iconTint = if (allFilesAccessGranted) VocalizeGreen else MaterialTheme.colorScheme.error,
+                        title = "Storage access",
+                        subtitle = if (allFilesAccessGranted) "All files access granted" else "Needs all files permission"
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showToneStatusDialog = false }) { Text("Close") }
             }
         )
     }

@@ -56,7 +56,7 @@ class VocalizeApplication : Application(), Configuration.Provider {
                 setSound(
                     soundUri,
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )

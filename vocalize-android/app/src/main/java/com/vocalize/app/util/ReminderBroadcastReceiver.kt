@@ -3,7 +3,9 @@ package com.vocalize.app.util
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import com.vocalize.app.data.repository.MemoRepository
+import com.vocalize.app.service.ReminderToneService
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.vocalize.app.dataStore
@@ -26,7 +28,16 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
 
         when (intent.action) {
             Constants.ACTION_PLAY -> {
-                notificationHelper.showReminderNotification(memoId, memoTitle)
+                val serviceIntent = Intent(context, ReminderToneService::class.java).apply {
+                    action = ReminderToneService.ACTION_START_REMINDER
+                    putExtra(Constants.EXTRA_MEMO_ID, memoId)
+                    putExtra(Constants.EXTRA_MEMO_TITLE, memoTitle)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
                 // Schedule next repeat if applicable
                 CoroutineScope(Dispatchers.IO).launch {
                     val memo = memoRepository.getMemoById(memoId) ?: return@launch
@@ -39,7 +50,16 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
                 notificationHelper.showReminderNoteNotification(memoId, memoTitle)
             }
             Constants.ACTION_BACK_TO_REMINDER -> {
-                notificationHelper.showReminderNotification(memoId, memoTitle)
+                val serviceIntent = Intent(context, ReminderToneService::class.java).apply {
+                    action = ReminderToneService.ACTION_START_REMINDER
+                    putExtra(Constants.EXTRA_MEMO_ID, memoId)
+                    putExtra(Constants.EXTRA_MEMO_TITLE, memoTitle)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
             }
             Constants.ACTION_SNOOZE -> {
                 CoroutineScope(Dispatchers.IO).launch {
@@ -49,9 +69,11 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
                     alarmScheduler.scheduleReminder(memo.copy(reminderTime = snoozeTime))
                 }
                 notificationHelper.cancelNotification(memoId)
+                context.stopService(Intent(context, ReminderToneService::class.java))
             }
             Constants.ACTION_DISMISS -> {
                 notificationHelper.cancelNotification(memoId)
+                context.stopService(Intent(context, ReminderToneService::class.java))
             }
         }
     }

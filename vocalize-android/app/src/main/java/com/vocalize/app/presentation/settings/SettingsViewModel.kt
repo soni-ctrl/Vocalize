@@ -1,5 +1,7 @@
 package com.vocalize.app.presentation.settings
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.MediaMetadataRetriever
@@ -29,6 +31,7 @@ import com.vocalize.app.util.DailyDigestWorker
 import com.vocalize.app.util.FileCompressor
 import com.vocalize.app.util.NotificationHelper
 import com.vocalize.app.util.ReminderAlarmScheduler
+import com.vocalize.app.util.ReminderBroadcastReceiver
 import com.vocalize.app.util.VoskTranscriber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.SimpleDateFormat
@@ -247,8 +250,20 @@ class SettingsViewModel @Inject constructor(
     fun testReminderTone() {
         viewModelScope.launch {
             showSnackbar("Reminder test scheduled in 3 seconds")
-            delay(3000)
-            notificationHelper.showReminderNotification("test_reminder", "Reminder tone test")
+            val triggerTime = System.currentTimeMillis() + 3000
+            val intent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
+                action = Constants.ACTION_PLAY
+                putExtra(Constants.EXTRA_MEMO_ID, "test_reminder")
+                putExtra(Constants.EXTRA_MEMO_TITLE, "Reminder tone test")
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                "test_reminder".hashCode(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = context.getSystemService(AlarmManager::class.java)
+            alarmManager?.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
         }
     }
 

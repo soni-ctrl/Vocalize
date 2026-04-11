@@ -89,6 +89,12 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
+        <!-- Reminder tone playback service -->
+        <service
+            android:name=".service.ReminderToneService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
         <!-- Vosk transcription service -->
         <service
             android:name=".service.VoskService"
