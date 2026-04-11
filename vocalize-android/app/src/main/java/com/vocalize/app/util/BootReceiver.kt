@@ -20,9 +20,14 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
             intent.action == "android.intent.action.LOCKED_BOOT_COMPLETED"
         ) {
+            val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
-                memoRepository.getAllMemosWithReminders().forEach { memo ->
-                    alarmScheduler.scheduleReminder(memo)
+                try {
+                    memoRepository.getAllMemosWithReminders().forEach { memo ->
+                        alarmScheduler.scheduleReminder(memo)
+                    }
+                } finally {
+                    pendingResult.finish()
                 }
             }
         }

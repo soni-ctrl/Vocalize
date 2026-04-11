@@ -100,6 +100,10 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
     }
 
     private suspend fun handleSnoozeAction(context: Context, memoId: String, memoTitle: String, reminderId: String?) {
+        // Guard: if the memo was deleted while the notification was visible, the FK
+        // insert below would crash with SQLITE_CONSTRAINT_FOREIGNKEY. Just bail out.
+        val memo = memoRepository.getMemoById(memoId) ?: return
+
         val snoozeMinutes = context.dataStore.data.first()[stringPreferencesKey(Constants.PREFS_DEFAULT_SNOOZE)]?.toIntOrNull() ?: 10
         val snoozeTime = System.currentTimeMillis() + snoozeMinutes * 60 * 1000L
         val tempReminder = ReminderEntity(
@@ -109,9 +113,13 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
             repeatType = RepeatType.NONE,
             customDays = ""
         )
-        memoRepository.insertReminder(tempReminder)
-        alarmScheduler.scheduleReminder(tempReminder, memoTitle)
-        refreshMemoReminderFields(memoId)
+        try {
+            memoRepository.insertReminder(tempReminder)
+            alarmScheduler.scheduleReminder(tempReminder, memo.title.ifBlank { memoTitle })
+            refreshMemoReminderFields(memoId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private suspend fun refreshMemoReminderFields(memoId: String) {

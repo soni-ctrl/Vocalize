@@ -2,6 +2,7 @@ package com.vocalize.app.service
 
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -11,7 +12,6 @@ import android.os.IBinder
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.vocalize.app.dataStore
-import com.vocalize.app.service.PlaybackService
 import com.vocalize.app.util.Constants
 import com.vocalize.app.data.repository.MemoRepository
 import com.vocalize.app.util.NotificationHelper
@@ -55,7 +55,7 @@ class ReminderToneService : Service() {
         val notification = notificationHelper.buildReminderNotification(memoId, memoTitle, reminderId)
         val notificationId = memoId.hashCode()
 
-        startForeground(notificationId, notification)
+        startForegroundCompat(notificationId, notification)
 
         serviceScope.launch {
             playReminderTone()
@@ -72,7 +72,7 @@ class ReminderToneService : Service() {
             val memo = memoRepository.getMemoById(memoId)
             val noteText = memo?.textNote?.takeIf { it.isNotBlank() } ?: "No notes available."
             val notification = notificationHelper.buildReminderNoteNotification(memoId, memoTitle, noteText, reminderId)
-            startForeground(memoId.hashCode(), notification)
+            startForegroundCompat(memoId.hashCode(), notification)
         }
     }
 
@@ -81,7 +81,20 @@ class ReminderToneService : Service() {
         val memoTitle = intent.getStringExtra(Constants.EXTRA_MEMO_TITLE) ?: "Reminder tone test"
         val reminderId = intent.getStringExtra(Constants.EXTRA_REMINDER_ID)
         val notification = notificationHelper.buildReminderNotification(memoId, memoTitle, reminderId)
-        startForeground(memoId.hashCode(), notification)
+        startForegroundCompat(memoId.hashCode(), notification)
+    }
+
+    /**
+     * On Android 14+, the service is declared with foregroundServiceType="alarm" in the manifest.
+     * We must pass FOREGROUND_SERVICE_TYPE_ALARM so Android grants alarm Doze-mode exemptions.
+     * On older versions the overload without type is used (alarm type doesn't exist pre-14).
+     */
+    private fun startForegroundCompat(id: Int, notification: android.app.Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(id, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_ALARM)
+        } else {
+            startForeground(id, notification)
+        }
     }
 
     private suspend fun playReminderTone() {
