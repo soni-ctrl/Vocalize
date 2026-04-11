@@ -29,7 +29,7 @@ class WidgetMemoListFactory(
 
     companion object {
         private const val TAG = "WidgetListService"
-        private const val MAX_WIDGET_MEMOS = 5
+        private const val MAX_WIDGET_MEMOS = 1
     }
 
     private var memos: List<MemoEntity> = emptyList()
@@ -43,8 +43,6 @@ class WidgetMemoListFactory(
             runBlocking(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(context)
                 memos = db.memoDao().getWidgetMemos(MAX_WIDGET_MEMOS)
-                val categories = db.categoryDao().getAllCategoriesSync()
-                categoryColors = categories.associate { it.id to it.colorHex }
                 val totalCount = db.memoDao().getMemoCountSync()
 
                 VocalizeWidget.prefs(context)
@@ -75,31 +73,10 @@ class WidgetMemoListFactory(
         }
 
         return RemoteViews(context.packageName, R.layout.widget_memo_item).apply {
-            val displayTitle = if (memo.isPinned) {
-                "📌 ${memo.title.ifBlank { "Voice Memo" }}"
-            } else {
-                memo.title.ifBlank { "Voice Memo" }
-            }
+            val displayTitle = memo.title.ifBlank { "Voice Memo" }
             setTextViewText(R.id.widget_item_title, displayTitle)
-            setTextViewText(
-                R.id.widget_item_subtitle,
-                "${Utils.formatDuration(memo.duration)} · ${Utils.formatTimestamp(memo.dateCreated)}"
-            )
-
-            val colorHex = memo.categoryId?.let { categoryColors[it] }
-            val stripColor = if (colorHex != null) {
-                try { Color.parseColor(colorHex) } catch (_: Exception) { Color.parseColor("#EF4444") }
-            } else {
-                Color.parseColor("#EF4444")
-            }
-            setInt(R.id.widget_item_color_strip, "setBackgroundColor", stripColor)
-
-            val fillIn = Intent().apply {
-                putExtra(Constants.EXTRA_MEMO_ID, memo.id)
-                putExtra(Constants.EXTRA_MEMO_TITLE, memo.title.ifBlank { "Voice Memo" })
-            }
-            setOnClickFillInIntent(R.id.widget_item_play, fillIn)
-            setOnClickFillInIntent(R.id.widget_item_root, fillIn)
+            setTextViewText(R.id.widget_item_subtitle, "")
+            setInt(R.id.widget_item_color_strip, "setBackgroundColor", Color.TRANSPARENT)
         }
     }
 
