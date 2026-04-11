@@ -50,6 +50,7 @@ fun SettingsScreen(
     var previewToneUri by remember { mutableStateOf<Uri?>(null) }
     var isPreviewPlaying by remember { mutableStateOf(false) }
     val toneListScrollState = rememberScrollState()
+    val exactAlarmPermissionGranted = PermissionsHelper.hasScheduleExactAlarmPermission(context)
     val mediaPlayer = remember { MediaPlayer() }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -288,6 +289,14 @@ fun SettingsScreen(
                     subtitle = uiState.reminderToneFileName,
                     onClick = { showToneListDialog = true }
                 )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsActionRow(
+                    icon = Icons.Default.PlayArrow,
+                    iconTint = VocalizeGreen,
+                    title = "Test reminder tone",
+                    subtitle = "Schedules a test reminder in 3 seconds",
+                    onClick = { viewModel.testReminderTone() }
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "Reminder volume: ${uiState.reminderToneVolume}%",
@@ -300,6 +309,53 @@ fun SettingsScreen(
                     valueRange = 0f..1f,
                     steps = 4,
                     modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            // ── Reminder Tone Status ──────────────────────────────
+            SettingsSectionHeader("Tone status", Icons.Default.Info)
+
+            SettingsCard {
+                SettingsInfoRow(
+                    icon = Icons.Default.MusicNote,
+                    iconTint = VocalizeGreen,
+                    title = "Selected tone",
+                    subtitle = uiState.reminderToneFileName
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsInfoRow(
+                    icon = Icons.Default.Folder,
+                    iconTint = VocalizeAccentBlue,
+                    title = "Tone folder",
+                    subtitle = uiState.reminderToneFolderUri?.let { "Custom folder selected" } ?: uiState.reminderToneFolderPath
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsInfoRow(
+                    icon = Icons.Default.VolumeUp,
+                    iconTint = VocalizeOrange,
+                    title = "Volume",
+                    subtitle = "${uiState.reminderToneVolume}%"
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsInfoRow(
+                    icon = Icons.Default.CheckCircle,
+                    iconTint = if (allPermissionsGranted) VocalizeGreen else MaterialTheme.colorScheme.error,
+                    title = "Core permissions",
+                    subtitle = if (allPermissionsGranted) "Audio and notification permissions granted" else "Missing microphone or notification permission"
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsInfoRow(
+                    icon = Icons.Default.Security,
+                    iconTint = if (exactAlarmPermissionGranted) VocalizeGreen else MaterialTheme.colorScheme.error,
+                    title = "Alarm permission",
+                    subtitle = if (exactAlarmPermissionGranted) "Exact alarm granted" else "Needs exact alarm permission"
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsInfoRow(
+                    icon = Icons.Default.Storage,
+                    iconTint = if (allFilesAccessGranted) VocalizeGreen else MaterialTheme.colorScheme.error,
+                    title = "Storage access",
+                    subtitle = if (allFilesAccessGranted) "All files access granted" else "Needs all files permission"
                 )
             }
 

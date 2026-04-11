@@ -36,6 +36,7 @@ import java.util.Date
 import java.util.Locale
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -240,6 +241,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.edit { it[intPreferencesKey(Constants.PREFS_REMINDER_VOLUME)] = volume }
             _uiState.update { it.copy(reminderToneVolume = volume) }
+        }
+    }
+
+    fun testReminderTone() {
+        viewModelScope.launch {
+            showSnackbar("Reminder test scheduled in 3 seconds")
+            delay(3000)
+            notificationHelper.showReminderNotification("test_reminder", "Reminder tone test")
         }
     }
 
