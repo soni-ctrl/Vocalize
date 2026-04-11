@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.vocalize.app.presentation.theme.*
 import com.vocalize.app.util.PermissionsHelper
 import java.text.SimpleDateFormat
