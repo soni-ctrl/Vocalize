@@ -43,7 +43,6 @@ class VocalizeWidget : AppWidgetProvider() {
                 Log.d(TAG, "onReceive ACTION_REFRESH widgetIds=${ids.joinToString()}")
                 ids.forEach { id ->
                     try {
-                        manager.notifyAppWidgetViewDataChanged(id, R.id.widget_memo_list)
                         updateAppWidget(context, manager, id)
                         Log.d(TAG, "onReceive ACTION_REFRESH updated widgetId=$id")
                     } catch (e: Exception) {
@@ -142,7 +141,6 @@ class VocalizeWidget : AppWidgetProvider() {
             val latestMemoTitle = latestMemo?.title ?: "none"
             Log.d(TAG, "updateAppWidget widgetId=$appWidgetId count=$count latestMemo=$latestMemoId title='$latestMemoTitle'")
             appWidgetManager.updateAppWidget(appWidgetId, views)
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_memo_list)
         }
 
         fun requestWidgetRefresh(context: Context) {
